@@ -1,33 +1,3 @@
-Je vois le problème : les montants utilisent des virgules et des slashs alors qu'ils devraient être formatés avec des espaces et sans décimales. Le problème vient du formatage dans la fonction formatMoney.
-
-Remplacer la fonction formatMoney par celle-ci :
-
-```javascript
-function formatMoney(amount) {
-  // Arrondir à l'entier le plus proche
-  const rounded = Math.round(amount);
-  // Formater avec séparateur de milliers (espace)
-  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
-```
-
-Et dans la fonction exportPDF, au moment d'ajouter les montants, il faut utiliser cette fonction :
-
-```javascript
-// Exemple dans le tableau
-const qty = clampNumber(tr.querySelector('[data-field="qty"]')?.value);
-const price = clampNumber(tr.querySelector('[data-field="price"]')?.value);
-tableData.push([
-  tr.querySelector('[data-field="designation"]')?.value || '',
-  String(qty),
-  formatMoney(price),      // ICI
-  formatMoney(qty * price) // ICI
-]);
-```
-
-Voici le fichier complet avec toutes les corrections :
-
-```javascript
 (function() {
   // ==================== CONFIGURATION ====================
   const STORAGE = {
@@ -564,7 +534,7 @@ Voici le fichier complet avec toutes les corrections :
     if (refs.historyOverlay) refs.historyOverlay.classList.remove('open');
   }
 
-  // ==================== EXPORT PDF (CORRIGÉ) ====================
+  // ==================== EXPORT PDF ====================
   function exportPDF() {
     try {
       if (!refs.itemsBody || refs.itemsBody.rows.length === 0) {
@@ -791,33 +761,33 @@ Voici le fichier complet avec toutes les corrections :
     // Boutons mode
     if (refs.btnDevis) {
       refs.btnDevis.addEventListener('click', () => setMode('devis'));
-    }
+    } else console.warn('btnDevis manquant');
     if (refs.btnFacture) {
       refs.btnFacture.addEventListener('click', () => setMode('facture'));
-    }
+    } else console.warn('btnFacture manquant');
 
     // Actions principales
     if (refs.btnHistory) {
       refs.btnHistory.addEventListener('click', openHistory);
-    }
+    } else console.warn('btnHistory manquant');
     if (refs.btnCloseHistory) {
       refs.btnCloseHistory.addEventListener('click', closeHistory);
-    }
+    } else console.warn('btnCloseHistory manquant');
     if (refs.historyOverlay) {
       refs.historyOverlay.addEventListener('click', (e) => {
         if (e.target === refs.historyOverlay) closeHistory();
       });
-    }
+    } else console.warn('historyOverlay manquant');
     if (refs.historySearch) {
       refs.historySearch.addEventListener('input', renderHistory);
-    }
+    } else console.warn('historySearch manquant');
 
     if (refs.btnArchive) {
       refs.btnArchive.addEventListener('click', () => {
         archiveCurrentDocument();
         showToast('Document sauvegardé', 'success');
       });
-    }
+    } else console.warn('btnArchive manquant');
 
     if (refs.btnNew) {
       refs.btnNew.addEventListener('click', () => {
@@ -825,19 +795,19 @@ Voici le fichier complet avec toutes les corrections :
           resetToNew();
         }
       });
-    }
+    } else console.warn('btnNew manquant');
 
     if (refs.btnPdf) {
       refs.btnPdf.addEventListener('click', exportPDF);
-    }
+    } else console.warn('btnPdf manquant');
     if (refs.btnExcel) {
       refs.btnExcel.addEventListener('click', exportExcel);
-    }
+    } else console.warn('btnExcel manquant');
 
     // Ajout ligne
     if (refs.addRow) {
       refs.addRow.addEventListener('click', () => addItemRow({}, { focus: true }));
-    }
+    } else console.warn('addRow manquant');
 
     // Suppression ligne
     if (refs.itemsBody) {
@@ -871,7 +841,7 @@ Voici le fichier complet avec toutes les corrections :
         updateTotals();
         scheduleSave();
       });
-    }
+    } else console.warn('itemsBody manquant');
 
     // TVA toggle
     if (refs.vatEnabled) {
@@ -879,7 +849,7 @@ Voici le fichier complet avec toutes les corrections :
         updateTotals();
         scheduleSave();
       });
-    }
+    } else console.warn('vatEnabled manquant');
 
     // Autres champs
     const inputs = [
@@ -902,7 +872,7 @@ Voici le fichier complet avec toutes les corrections :
     // Logo
     if (refs.logoPlaceholder) {
       refs.logoPlaceholder.addEventListener('click', () => refs.logoUpload?.click());
-    }
+    } else console.warn('logoPlaceholder manquant');
 
     if (refs.logoUpload) {
       refs.logoUpload.addEventListener('change', (e) => {
@@ -920,7 +890,7 @@ Voici le fichier complet avec toutes les corrections :
         };
         reader.readAsDataURL(file);
       });
-    }
+    } else console.warn('logoUpload manquant');
 
     // Date du jour
     if (refs.currentDate) {
@@ -951,6 +921,3 @@ Voici le fichier complet avec toutes les corrections :
     init();
   }
 })();
-```
-
-Les montants s'afficheront maintenant correctement : 20 000 au lieu de 20 / 000.
