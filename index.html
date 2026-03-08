@@ -121,43 +121,37 @@
         <div class="document-footer">
           <div class="totals-section">
             <div class="totals-left">
-              <div class="info-group">
-                <label for="vatRate"><i class="fas fa-percent"></i> TVA (%)</label>
-                <input type="number" id="vatRate" value="20" min="0" step="0.1">
+              <div class="info-group vat-group">
+                <div class="vat-toggle">
+                  <input type="checkbox" id="vatEnabled" checked>
+                  <label for="vatEnabled"><i class="fas fa-percent"></i> TVA</label>
+                </div>
+                <div class="vat-input" id="vatInputContainer">
+                  <input type="number" id="vatRate" value="18" min="0" step="0.1">
+                  <span>%</span>
+                </div>
               </div>
               <div class="info-group">
                 <label for="currency"><i class="fas fa-money-bill-wave"></i> Devise</label>
-                <input type="text" id="currency" value="€">
-              </div>
-              <div class="info-group">
-                <label for="paymentTerms"><i class="fas fa-clock"></i> Conditions</label>
-                <input type="text" id="paymentTerms" value="Paiement à réception">
+                <input type="text" id="currency" value="CFA">
               </div>
             </div>
             <div class="totals-right">
               <table class="totals-table">
                 <tr>
                   <td class="label-cell">Sous-total HT</td>
-                  <td class="amount-cell"><span id="subtotal">0,00</span> <span class="curr">€</span></td>
+                  <td class="amount-cell"><span id="subtotal">0</span> <span class="curr">CFA</span></td>
                 </tr>
                 <tr id="vatRow">
-                  <td class="label-cell">TVA (<span id="vatRateDisplay">20</span>%)</td>
-                  <td class="amount-cell"><span id="totalTax">0,00</span> <span class="curr">€</span></td>
+                  <td class="label-cell">TVA <span id="vatRateDisplay">18</span>%</td>
+                  <td class="amount-cell"><span id="totalTax">0</span> <span class="curr">CFA</span></td>
                 </tr>
                 <tr class="total-row">
                   <td class="label-cell">Total TTC</td>
-                  <td class="amount-cell total"><span id="grandTotal">0,00</span> <span class="curr">€</span></td>
+                  <td class="amount-cell total"><span id="grandTotal">0</span> <span class="curr">CFA</span></td>
                 </tr>
               </table>
             </div>
-          </div>
-        </div>
-
-        <!-- Informations complémentaires -->
-        <div class="additional-info">
-          <div class="info-row">
-            <label for="documentNotes"><i class="fas fa-sticky-note"></i> Notes / Conditions particulières</label>
-            <textarea id="documentNotes" rows="3" placeholder="Mentions légales, délais, garanties..."></textarea>
           </div>
         </div>
       </div>
