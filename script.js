@@ -23,7 +23,12 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
   function formatMoney(amount) {
-    return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+    // Format sans décimales avec séparateur de milliers (espace)
+    return new Intl.NumberFormat('fr-FR', { 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 0,
+      useGrouping: true
+    }).format(amount);
   }
 
   function clampNumber(n, min = 0) {
@@ -531,7 +536,7 @@
     if (refs.historyOverlay) refs.historyOverlay.classList.remove('open');
   }
 
-  // ==================== EXPORT PDF ====================
+  // ==================== EXPORT PDF (CORRIGÉ) ====================
   function exportPDF() {
     try {
       if (!refs.itemsBody || refs.itemsBody.rows.length === 0) {
@@ -542,46 +547,99 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       
-      // Titre
+      // ===== EN-TÊTE =====
+      doc.setFillColor(30, 60, 114);
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      // Logo (si présent)
+      let leftX = 45;
+      if (state.logoDataURL) {
+        try {
+          doc.addImage(state.logoDataURL, 'JPEG', 15, 8, 25, 25, undefined, 'FAST');
+          leftX = 45;
+        } catch (e) {}
+      }
+      
+      // Informations prestataire
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(refs.emitterName?.value || 'Votre entreprise', leftX, 15);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(refs.emitterAddress?.value || '', leftX, 22);
+      doc.text(refs.emitterExtra?.value || '', leftX, 27);
+      doc.text(`${refs.emitterTel?.value || ''} ${refs.emitterEmail?.value || ''}`.trim(), leftX, 32);
+      
+      // Titre du document
       doc.setFontSize(20);
-      doc.setTextColor(30, 60, 114);
-      doc.text(refs.docTitle?.textContent || 'DOCUMENT', 105, 20, { align: 'center' });
-
-      // Informations
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text(`N° ${refs.docNumber?.value || ''}`, 20, 30);
-      doc.text(`Date : ${refs.docDate?.value || ''}`, 20, 35);
-
-      // Client
+      doc.setFont('helvetica', 'bold');
+      doc.text(refs.docTitle?.textContent || 'DOCUMENT', 195, 20, { align: 'right' });
+      
+      // Références
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`N° ${refs.docNumber?.value || ''}`, 195, 28, { align: 'right' });
+      doc.text(`Date : ${refs.docDate?.value || ''}`, 195, 34, { align: 'right' });
+      
+      // ===== CLIENT =====
+      let y = 50;
+      doc.setTextColor(0, 0, 0);
+      doc.setFillColor(232, 238, 255);
+      doc.roundedRect(15, y, 180, 30, 3, 3, 'F');
+      doc.setDrawColor(42, 82, 152);
+      doc.setLineWidth(0.5);
+      doc.line(15, y, 15, y + 30);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(42, 82, 152);
+      doc.text('CLIENT', 19, y + 6);
+      
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(11);
-      doc.setTextColor(0);
-      doc.text('Client :', 20, 50);
-      doc.setFontSize(10);
-      doc.text(refs.clientName?.value || '', 20, 55);
-      doc.text(refs.clientAddress?.value || '', 20, 60);
-
-      // Tableau
+      doc.setFont('helvetica', 'bold');
+      doc.text(refs.clientName?.value || 'Client', 19, y + 13);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(refs.clientAddress?.value || '', 19, y + 19);
+      doc.text(refs.clientExtra?.value || '', 19, y + 24);
+      
+      y += 40;
+      
+      // ===== TABLEAU =====
       const tableData = [];
       for (const tr of refs.itemsBody.rows) {
+        const qty = clampNumber(tr.querySelector('[data-field="qty"]')?.value);
+        const price = clampNumber(tr.querySelector('[data-field="price"]')?.value);
         tableData.push([
           tr.querySelector('[data-field="designation"]')?.value || '',
-          tr.querySelector('[data-field="qty"]')?.value || '0',
-          tr.querySelector('[data-field="price"]')?.value || '0',
-          tr.querySelector('.line-total-cell')?.textContent || '0'
+          String(qty),
+          formatMoney(price),
+          formatMoney(qty * price)
         ]);
       }
 
       doc.autoTable({
         head: [['Désignation', 'Qté', 'Prix HT', 'Total HT']],
         body: tableData,
-        startY: 70,
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [30, 60, 114] }
+        startY: y,
+        margin: { left: 15, right: 15 },
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: [30, 60, 114], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 255] },
+        columnStyles: {
+          0: { cellWidth: 'auto' },
+          1: { halign: 'right', cellWidth: 25 },
+          2: { halign: 'right', cellWidth: 35 },
+          3: { halign: 'right', cellWidth: 35 }
+        }
       });
 
-      // Totaux
-      const finalY = doc.lastAutoTable.finalY + 10;
+      // ===== TOTAUX =====
+      let finalY = doc.lastAutoTable.finalY + 10;
       const curr = refs.currency?.value || 'CFA';
       const subtotal = computeSubtotal();
       const vatEnabled = refs.vatEnabled?.checked || false;
@@ -589,21 +647,59 @@
       const tax = subtotal * vatRate / 100;
       const total = subtotal + tax;
 
-      doc.setFontSize(10);
-      doc.setTextColor(0);
-      doc.text(`Sous-total HT : ${formatMoney(subtotal)} ${curr}`, 20, finalY);
+      // Fond pour les totaux
+      doc.setFillColor(232, 238, 255);
+      doc.roundedRect(120, finalY - 2, 75, vatEnabled ? 35 : 25, 3, 3, 'F');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(90, 90, 120);
+      doc.text('Sous-total HT', 124, finalY + 4);
       if (vatEnabled) {
-        doc.text(`TVA (${vatRate}%) : ${formatMoney(tax)} ${curr}`, 20, finalY + 5);
+        doc.text(`TVA (${vatRate}%)`, 124, finalY + 11);
       }
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(30, 60, 114);
+      doc.text('Total TTC', 124, finalY + (vatEnabled ? 23 : 15));
+      
+      // Montants alignés à droite
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`${formatMoney(subtotal)} ${curr}`, 190, finalY + 4, { align: 'right' });
+      if (vatEnabled) {
+        doc.text(`${formatMoney(tax)} ${curr}`, 190, finalY + 11, { align: 'right' });
+      }
+      
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.setFont(undefined, 'bold');
-      doc.text(`Total TTC : ${formatMoney(total)} ${curr}`, 20, finalY + (vatEnabled ? 12 : 7));
+      doc.setTextColor(30, 60, 114);
+      doc.text(`${formatMoney(total)} ${curr}`, 190, finalY + (vatEnabled ? 23 : 15), { align: 'right' });
 
+      // ===== SIGNATURE =====
+      let sigY = finalY + (vatEnabled ? 45 : 35);
+      doc.setDrawColor(42, 82, 152);
+      doc.setLineWidth(0.5);
+      doc.line(15, sigY, 80, sigY);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(90, 90, 120);
+      doc.text('Cachet et signature', 15, sigY + 5);
+      
+      if (refs.placeOfIssue?.value) {
+        doc.text(`Fait à ${refs.placeOfIssue.value}, le ${new Date().toLocaleDateString('fr-FR')}`, 120, sigY + 5);
+      }
+
+      // ===== SAUVEGARDE =====
       doc.save(`${refs.docTitle?.textContent || 'document'}_${refs.docNumber?.value || 'sans-numero'}.pdf`);
       showToast('PDF généré', 'success');
+      
     } catch (e) {
-      console.error(e);
-      showToast('Erreur PDF', 'error');
+      console.error('Erreur PDF:', e);
+      showToast('Erreur lors de la génération du PDF', 'error');
     }
   }
 
@@ -629,11 +725,13 @@
       ];
 
       for (const tr of refs.itemsBody.rows) {
+        const qty = clampNumber(tr.querySelector('[data-field="qty"]')?.value);
+        const price = clampNumber(tr.querySelector('[data-field="price"]')?.value);
         data.push([
           tr.querySelector('[data-field="designation"]')?.value || '',
-          tr.querySelector('[data-field="qty"]')?.value || '0',
-          tr.querySelector('[data-field="price"]')?.value || '0',
-          tr.querySelector('.line-total-cell')?.textContent || '0'
+          qty,
+          price,
+          qty * price
         ]);
       }
 
@@ -655,8 +753,8 @@
       XLSX.writeFile(wb, `${refs.docTitle?.textContent || 'document'}_${refs.docNumber?.value || 'sans-numero'}.xlsx`);
       showToast('Excel généré', 'success');
     } catch (e) {
-      console.error(e);
-      showToast('Erreur Excel', 'error');
+      console.error('Erreur Excel:', e);
+      showToast('Erreur lors de la génération Excel', 'error');
     }
   }
 
