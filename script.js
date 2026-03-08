@@ -1,3 +1,33 @@
+Je vois le problème : les montants utilisent des virgules et des slashs alors qu'ils devraient être formatés avec des espaces et sans décimales. Le problème vient du formatage dans la fonction formatMoney.
+
+Remplacer la fonction formatMoney par celle-ci :
+
+```javascript
+function formatMoney(amount) {
+  // Arrondir à l'entier le plus proche
+  const rounded = Math.round(amount);
+  // Formater avec séparateur de milliers (espace)
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+```
+
+Et dans la fonction exportPDF, au moment d'ajouter les montants, il faut utiliser cette fonction :
+
+```javascript
+// Exemple dans le tableau
+const qty = clampNumber(tr.querySelector('[data-field="qty"]')?.value);
+const price = clampNumber(tr.querySelector('[data-field="price"]')?.value);
+tableData.push([
+  tr.querySelector('[data-field="designation"]')?.value || '',
+  String(qty),
+  formatMoney(price),      // ICI
+  formatMoney(qty * price) // ICI
+]);
+```
+
+Voici le fichier complet avec toutes les corrections :
+
+```javascript
 (function() {
   // ==================== CONFIGURATION ====================
   const STORAGE = {
@@ -23,12 +53,10 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
   function formatMoney(amount) {
-    // Format sans décimales avec séparateur de milliers (espace)
-    return new Intl.NumberFormat('fr-FR', { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 0,
-      useGrouping: true
-    }).format(amount);
+    // Arrondir à l'entier le plus proche
+    const rounded = Math.round(amount);
+    // Formater avec séparateur de milliers (espace)
+    return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
   function clampNumber(n, min = 0) {
@@ -923,3 +951,6 @@
     init();
   }
 })();
+```
+
+Les montants s'afficheront maintenant correctement : 20 000 au lieu de 20 / 000.
