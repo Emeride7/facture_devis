@@ -956,3 +956,70 @@ tr[draggable="true"]:hover td {
   }
   
   /* Amélioration tableau mobile
+/* ===== VERSION MOBILE SANS DÉFILEMENT HORIZONTAL ===== */
+@media (max-width: 600px) {
+  .table-container,
+  .items-table,
+  .items-table thead,
+  .items-table tbody,
+  .items-table tr,
+  .items-table td {
+    display: block;
+  }
+
+  .items-table thead {
+    display: none; /* Cache l'en-tête */
+  }
+
+  .items-table tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: white;
+    box-shadow: var(--shadow);
+  }
+
+  .items-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border: none;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  .items-table td:last-child {
+    border-bottom: none;
+  }
+
+  .items-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--primary);
+    margin-right: 1rem;
+    min-width: 100px;
+  }
+
+  /* Labels personnalisés pour chaque colonne */
+  .items-table td:nth-child(2)::before { content: "Désignation : "; }
+  .items-table td:nth-child(3)::before { content: "Qté : "; }
+  .items-table td:nth-child(4)::before { content: "Prix HT : "; }
+  .items-table td:nth-child(5)::before { content: "Total HT : "; }
+  .items-table td:nth-child(6)::before { content: "Action : "; }
+
+  /* Ajustements pour les champs de saisie */
+  .items-table td .item-input {
+    width: 60%;
+    text-align: right;
+  }
+
+  .items-table td .remove-row-btn {
+    margin-left: auto;
+  }
+
+  /* Poignée de déplacement */
+  .drag-handle {
+    display: none; /* On la cache en mobile, car le drag est difficile */
+  }
+  }
