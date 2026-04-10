@@ -3,53 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <title>ProGestion - Devis / Facture</title>
-  <!-- Google Fonts & Font Awesome -->
+  <meta name="theme-color" content="#1e3c72">
+  <title>ProGestion — Devis / Facture</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <!-- jsPDF et autoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Barre d'outils principale -->
-  <div class="toolbar">
+
+  <!-- ===== BARRE D'OUTILS ===== -->
+  <div class="toolbar" id="toolbar">
     <div class="toolbar-left">
-      <span class="brand"><i class="fas fa-file-invoice"></i> DEVIS / FACTURE</span>
+      <span class="brand">
+        <i class="fas fa-file-invoice"></i>
+        <span class="brand-text">ProGestion</span>
+      </span>
     </div>
+
     <div class="toolbar-center">
       <div class="mode-switcher">
-        <button type="button" class="mode-btn active" id="btnDevis"><i class="fas fa-file"></i> DEVIS</button>
-        <button type="button" class="mode-btn" id="btnFacture"><i class="fas fa-file-invoice-dollar"></i> FACTURE</button>
+        <button type="button" class="mode-btn active" id="btnDevis" title="Devis">
+          <i class="fas fa-file"></i>
+          <span class="mode-label">DEVIS</span>
+        </button>
+        <button type="button" class="mode-btn" id="btnFacture" title="Facture">
+          <i class="fas fa-file-invoice-dollar"></i>
+          <span class="mode-label">FACTURE</span>
+        </button>
+        <button type="button" class="mode-btn" id="btnProforma" title="Pro Forma">
+          <i class="fas fa-file-alt"></i>
+          <span class="mode-label">PRO FORMA</span>
+        </button>
       </div>
     </div>
+
     <div class="toolbar-right">
-      <button type="button" class="btn-history" id="btnHistory" title="Historique"><i class="fas fa-history"></i></button>
-      <button type="button" class="btn-save" id="btnArchive" title="Sauvegarder"><i class="fas fa-save"></i></button>
-      <button type="button" class="btn-new" id="btnNew" title="Nouveau document"><i class="fas fa-plus-circle"></i></button>
-      <button type="button" class="btn-pdf" id="btnPdf" title="Exporter en PDF"><i class="fas fa-file-pdf"></i></button>
-      <button type="button" class="btn-excel" id="btnExcel" title="Exporter en Excel"><i class="fas fa-file-excel"></i></button>
+      <button type="button" class="btn-action btn-history" id="btnHistory" title="Historique">
+        <i class="fas fa-history"></i>
+        <span class="btn-label">Historique</span>
+      </button>
+      <button type="button" class="btn-action btn-save" id="btnArchive" title="Sauvegarder dans l'historique">
+        <i class="fas fa-save"></i>
+        <span class="btn-label">Sauvegarder</span>
+      </button>
+      <button type="button" class="btn-action btn-new" id="btnNew" title="Nouveau document">
+        <i class="fas fa-plus-circle"></i>
+        <span class="btn-label">Nouveau</span>
+      </button>
+      <button type="button" class="btn-action btn-pdf" id="btnPdf" title="Exporter en PDF">
+        <i class="fas fa-file-pdf"></i>
+        <span class="btn-label">PDF</span>
+      </button>
+      <button type="button" class="btn-action btn-excel" id="btnExcel" title="Exporter en Excel">
+        <i class="fas fa-file-excel"></i>
+        <span class="btn-label">Excel</span>
+      </button>
     </div>
   </div>
 
+  <!-- Indicateur de sauvegarde automatique -->
+  <div class="autosave-bar" id="autosaveBar">
+    <i class="fas fa-check-circle"></i> Brouillon sauvegardé
+  </div>
+
   <main>
-    <!-- Carte principale -->
     <div class="document-card">
-      <!-- En-tête du document -->
+
+      <!-- ===== EN-TÊTE DU DOCUMENT ===== -->
       <div class="document-header">
         <div class="header-left">
+
           <!-- Logo -->
-          <div class="logo-wrapper">
-            <img id="logoPreview" src="#" alt="Logo">
+          <div class="logo-wrapper" title="Cliquer pour changer le logo">
+            <img id="logoPreview" src="#" alt="Logo entreprise">
             <div class="logo-placeholder" id="logoPlaceholder">
-              <i class="fas fa-cloud-upload-alt"></i> Logo
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span>Logo</span>
             </div>
-            <input type="file" id="logoUpload" accept="image/*">
+            <input type="file" id="logoUpload" accept="image/*" aria-label="Importer logo">
           </div>
+
           <!-- Informations émetteur -->
           <div class="emitter-info">
             <div class="info-row">
@@ -62,131 +100,199 @@
             <div class="info-row">
               <input type="text" class="header-input" id="emitterExtra" placeholder="Complément d'adresse">
             </div>
-            <div class="info-row">
+            <div class="info-row two-cols">
               <input type="tel" class="header-input" id="emitterTel" placeholder="Téléphone">
               <input type="email" class="header-input" id="emitterEmail" placeholder="Email">
             </div>
           </div>
         </div>
+
         <div class="header-right">
           <div class="doc-title-display" id="docTitle">DEVIS</div>
           <div class="ref-grid">
             <div class="ref-field">
               <label for="docNumber">N°</label>
-              <input type="text" class="ref-input" id="docNumber" placeholder="N° de document">
+              <input type="text" class="ref-input" id="docNumber" placeholder="N° document">
             </div>
             <div class="ref-field">
               <label for="docDate">Date</label>
               <input type="date" class="ref-input" id="docDate">
             </div>
           </div>
+          <!-- Validité (visible uniquement pour Devis et Pro Forma) -->
+          <div class="ref-field ref-field-full" id="validityContainer">
+            <label for="docValidity">Valide jusqu'au</label>
+            <input type="date" class="ref-input" id="docValidity">
+          </div>
         </div>
       </div>
 
-      <!-- Corps du document -->
+      <!-- ===== CORPS DU DOCUMENT ===== -->
       <div class="document-body">
-        <!-- Bloc Client -->
+
+        <!-- Section Client -->
         <div class="section-title"><i class="fas fa-user-tie"></i> Client</div>
         <div class="client-section">
           <div class="client-grid">
-            <input type="text" class="form-input" id="clientName" placeholder="Nom / Raison sociale" list="clientDatalist">
+            <input type="text" class="form-input" id="clientName"    placeholder="Nom / Raison sociale" list="clientDatalist">
             <input type="text" class="form-input" id="clientAddress" placeholder="Adresse">
-            <input type="text" class="form-input" id="clientExtra" placeholder="Complément d'adresse">
-            <input type="text" class="form-input" id="clientSiret" placeholder="SIRET / IFU (optionnel)">
-            <input type="tel" class="form-input" id="clientTel" placeholder="Téléphone">
-            <input type="email" class="form-input" id="clientEmail" placeholder="Email">
+            <input type="text" class="form-input" id="clientExtra"   placeholder="Complément d'adresse">
+            <input type="text" class="form-input" id="clientSiret"   placeholder="SIRET / IFU (optionnel)">
+            <input type="tel"  class="form-input" id="clientTel"     placeholder="Téléphone">
+            <input type="email" class="form-input" id="clientEmail"  placeholder="Email">
           </div>
         </div>
 
-        <!-- Détail des prestations -->
+        <!-- Section Prestations -->
         <div class="section-title"><i class="fas fa-list"></i> Prestations</div>
         <div class="table-container">
           <table class="items-table" id="itemsTable">
             <thead>
               <tr>
-                <th></th>
-                <th>Désignation</th>
-                <th>Qté</th>
-                <th>Prix unitaire HT</th>
-                <th>Total HT</th>
-                <th></th>
+                <th class="col-drag"       aria-label="Réorganiser"></th>
+                <th class="col-designation">Désignation</th>
+                <th class="col-qty">Qté</th>
+                <th class="col-price">Prix unitaire HT</th>
+                <th class="col-total">Total HT</th>
+                <th class="col-actions"    aria-label="Actions"></th>
               </tr>
             </thead>
             <tbody id="itemsBody"></tbody>
           </table>
         </div>
-        <button type="button" class="btn-add-row" id="addRow"><i class="fas fa-plus-circle"></i> Ajouter une ligne</button>
+        <button type="button" class="btn-add-row" id="addRow">
+          <i class="fas fa-plus-circle"></i> Ajouter une ligne
+        </button>
 
-        <!-- Pied de document (totaux) -->
+        <!-- Section Notes -->
+        <div class="section-title section-title-notes">
+          <i class="fas fa-sticky-note"></i> Notes &amp; Conditions
+        </div>
+        <textarea
+          class="notes-textarea"
+          id="docNotes"
+          placeholder="Conditions de paiement, délai d'exécution, mentions légales, notes diverses..."
+          rows="4"
+        ></textarea>
+
+        <!-- ===== PIED DU DOCUMENT (Totaux) ===== -->
         <div class="document-footer">
           <div class="totals-section">
+
+            <!-- Options gauche -->
             <div class="totals-left">
-              <div class="info-group vat-group">
-                <div class="vat-toggle">
+              <!-- TVA -->
+              <div class="info-group">
+                <div class="toggle-group">
                   <input type="checkbox" id="vatEnabled" checked>
                   <label for="vatEnabled"><i class="fas fa-percent"></i> TVA</label>
                 </div>
-                <div class="vat-input" id="vatInputContainer">
-                  <input type="number" id="vatRate" value="18" min="0" step="0.1">
+                <div class="rate-input" id="vatInputContainer">
+                  <input type="number" id="vatRate" value="18" min="0" max="100" step="0.1" aria-label="Taux TVA">
                   <span>%</span>
                 </div>
               </div>
+
+              <!-- Remise -->
               <div class="info-group">
-                <label for="currency"><i class="fas fa-money-bill-wave"></i> Devise</label>
-                <input type="text" id="currency" value="CFA">
+                <div class="toggle-group">
+                  <input type="checkbox" id="discountEnabled">
+                  <label for="discountEnabled"><i class="fas fa-tag"></i> Remise</label>
+                </div>
+                <div class="rate-input" id="discountInputContainer" style="display:none">
+                  <input type="number" id="discountRate" value="0" min="0" max="100" step="0.1" aria-label="Taux remise">
+                  <span>%</span>
+                </div>
+              </div>
+
+              <!-- Devise -->
+              <div class="info-group">
+                <div class="toggle-group static-label">
+                  <i class="fas fa-money-bill-wave"></i>
+                  <label for="currency">Devise</label>
+                </div>
+                <div class="rate-input">
+                  <input type="text" id="currency" value="CFA" maxlength="10" aria-label="Devise">
+                </div>
               </div>
             </div>
+
+            <!-- Tableau des totaux -->
             <div class="totals-right">
               <table class="totals-table">
                 <tr>
                   <td class="label-cell">Sous-total HT</td>
-                  <td class="amount-cell"><span id="subtotal">0</span> <span class="curr">CFA</span></td>
+                  <td class="amount-cell">
+                    <span id="subtotal">0</span>&nbsp;<span class="curr">CFA</span>
+                  </td>
+                </tr>
+                <tr id="discountRow" style="display:none">
+                  <td class="label-cell">
+                    Remise (<span id="discountRateDisplay">0</span>%)
+                  </td>
+                  <td class="amount-cell discount-cell">
+                    −<span id="totalDiscount">0</span>&nbsp;<span class="curr">CFA</span>
+                  </td>
                 </tr>
                 <tr id="vatRow">
-                  <td class="label-cell">TVA <span id="vatRateDisplay">18</span>%</td>
-                  <td class="amount-cell"><span id="totalTax">0</span> <span class="curr">CFA</span></td>
+                  <td class="label-cell">
+                    TVA (<span id="vatRateDisplay">18</span>%)
+                  </td>
+                  <td class="amount-cell">
+                    <span id="totalTax">0</span>&nbsp;<span class="curr">CFA</span>
+                  </td>
                 </tr>
                 <tr class="total-row">
                   <td class="label-cell">Total TTC</td>
-                  <td class="amount-cell total"><span id="grandTotal">0</span> <span class="curr">CFA</span></td>
+                  <td class="amount-cell total">
+                    <span id="grandTotal">0</span>&nbsp;<span class="curr">CFA</span>
+                  </td>
                 </tr>
               </table>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Signature -->
+      </div><!-- /.document-body -->
+
+      <!-- ===== SIGNATURE ===== -->
       <div class="signature-section">
         <div class="signature-left">
           <div class="signature-label">Cachet et signature</div>
           <div class="signature-line"></div>
         </div>
         <div class="signature-right">
-          <div>Fait à <input type="text" id="placeOfIssue" placeholder="Lieu" class="inline-input">, le <span id="currentDate"></span></div>
+          Fait à&nbsp;<input type="text" id="placeOfIssue" placeholder="Lieu" class="inline-input">,
+          le&nbsp;<span id="currentDate"></span>
         </div>
       </div>
-    </div>
+
+    </div><!-- /.document-card -->
   </main>
 
-  <!-- Panneau d'historique -->
-  <div class="history-overlay" id="historyOverlay">
+  <!-- ===== PANNEAU HISTORIQUE ===== -->
+  <div class="history-overlay" id="historyOverlay" role="dialog" aria-label="Historique des documents">
     <div class="history-panel">
       <div class="history-panel-header">
         <span><i class="fas fa-history"></i> Historique</span>
-        <button type="button" id="btnCloseHistory" aria-label="Fermer"><i class="fas fa-times"></i></button>
+        <button type="button" id="btnCloseHistory" aria-label="Fermer le panneau">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
       <div class="history-tools">
-        <input type="search" id="historySearch" placeholder="Rechercher...">
+        <div class="search-wrap">
+          <i class="fas fa-search search-icon"></i>
+          <input type="search" id="historySearch" placeholder="Rechercher par client ou n°...">
+        </div>
       </div>
       <div class="history-list" id="historyList"></div>
     </div>
   </div>
 
-  <!-- Toast de notification -->
-  <div class="toast-notification" id="toast"></div>
+  <!-- ===== TOAST ===== -->
+  <div class="toast-notification" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- Datalists pour l'autocomplétion -->
+  <!-- Datalists autocomplétion -->
   <datalist id="clientDatalist"></datalist>
   <datalist id="itemDatalist"></datalist>
 
