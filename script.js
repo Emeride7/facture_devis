@@ -45,10 +45,12 @@
   const $  = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 
-  /** Formater un montant entier avec espaces comme séparateur de milliers */
+  /** Formater un montant entier.
+   *  On N'utilise PAS toLocaleString('fr-FR') : son espace insécable Unicode
+   *  est mal rendue par jsPDF (affichée en '/'). On utilise une espace ASCII. */
   function fmt(n) {
     const r = Math.round(Number(n) || 0);
-    return r.toLocaleString('fr-FR');           // '1 234 567'
+    return r.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
   /** Valeur numérique sûre, ≥ min */
@@ -745,9 +747,21 @@
       };
 
       // ════════════════════════════════════════════════
-      // BLOC EN-TÊTE : bandeau bleu navy pleine largeur
+      // BLOC EN-TÊTE — hauteur dynamique selon les infos émetteur
       // ════════════════════════════════════════════════
-      const hdrH = 48;
+      const emitterLines = [
+        R.emitterAddress?.value,
+        R.emitterExtra?.value,
+        [R.emitterTel?.value, R.emitterEmail?.value].filter(Boolean).join('   |   ')
+      ].filter(Boolean);
+
+      // Côté droit : titre (16) + n°(25) + date(31) + [validité(37)]
+      const rightLineCount = 3 + (mode.hasValidity && R.docValidity?.value ? 1 : 0);
+      // Côté gauche : nom(14) + lignes émetteur (5 chacune) depuis y=20
+      const leftBottom = 20 + emitterLines.length * 5;
+      const rightBottom = 14 + rightLineCount * 6 + 4;
+      const hdrH = Math.max(36, Math.max(leftBottom, rightBottom) + 6);
+
       setFill(C.navy);
       doc.rect(0, 0, pw, hdrH, 'F');
 
@@ -756,9 +770,8 @@
       if (state.logoDataURL) {
         try {
           const imgFmt = state.logoDataURL.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-          const lSize = 30;
+          const lSize = Math.min(30, hdrH - 10);
           const lY    = (hdrH - lSize) / 2;
-          // fond blanc arrondi derrière le logo
           setFill(C.white);
           doc.roundedRect(ml, lY, lSize, lSize, 3, 3, 'F');
           doc.addImage(state.logoDataURL, imgFmt, ml + 1, lY + 1, lSize - 2, lSize - 2, undefined, 'FAST');
@@ -769,16 +782,12 @@
       // ── Nom & coordonnées émetteur (colonne gauche) ──
       setColor(C.white);
       setFont('bold', 13);
-      doc.text(R.emitterName?.value || 'Votre entreprise', emitterX, 14);
+      const nameY = Math.min(14, hdrH / 3);
+      doc.text(R.emitterName?.value || 'Votre entreprise', emitterX, nameY);
 
       setFont('normal', 8);
       setColor([200, 215, 245]);
-      let ey = 20;
-      const emitterLines = [
-        R.emitterAddress?.value,
-        R.emitterExtra?.value,
-        [R.emitterTel?.value, R.emitterEmail?.value].filter(Boolean).join('   |   ')
-      ].filter(Boolean);
+      let ey = nameY + 6;
       emitterLines.forEach(line => {
         doc.text(line, emitterX, ey);
         ey += 5;
@@ -787,16 +796,13 @@
       // ── Titre du document + références (colonne droite) ──
       const rightX = pw - mr;
 
-      // Titre (grand)
       setFont('bold', 24);
       setColor(C.white);
       doc.text(mode.label, rightX, 16, { align: 'right' });
 
-      // Filet fin sous le titre
       setDraw([255, 255, 255], 0.3);
       doc.line(rightX - 52, 19, rightX, 19);
 
-      // Numéro & date
       setFont('normal', 8.5);
       setColor([200, 215, 245]);
       doc.text(`N°  ${R.docNumber?.value || '—'}`, rightX, 25, { align: 'right' });
@@ -807,25 +813,35 @@
       }
 
       // ════════════════════════════════════════════════
-      // CARTE CLIENT (sous l'en-tête, légèrement décalée)
+      // CARTE CLIENT — hauteur dynamique selon le contenu
       // ════════════════════════════════════════════════
       let y = hdrH + 8;
+
+      // Calcul des lignes réelles du client
+      const clientLines = [
+        R.clientAddress?.value,
+        R.clientExtra?.value,
+        [R.clientTel?.value, R.clientEmail?.value].filter(Boolean).join('   |   '),
+        R.clientSiret?.value ? `SIRET / IFU : ${R.clientSiret.value}` : null
+      ].filter(Boolean);
+
+      // Hauteur = nom (10) + lignes (5 par ligne) + marges top/bottom (10+6)
+      const cardH = Math.max(26, 16 + clientLines.length * 5 + 6);
 
       // Fond carte client
       setFill(C.lightBg);
       setDraw(C.line, 0.4);
-      doc.roundedRect(ml, y, cw, 36, 4, 4, 'FD');
+      doc.roundedRect(ml, y, cw, cardH, 4, 4, 'FD');
 
-      // Bandeau "FACTURÉ À" sur le côté gauche
+      // Bandeau "FACTURÉ À" sur le côté gauche (adapté à la hauteur)
       setFill(C.blue);
-      doc.roundedRect(ml, y, 22, 36, 4, 4, 'F');
-      // Couvrir les coins arrondis droits du bandeau pour qu'il soit carré à droite
-      doc.rect(ml + 16, y, 6, 36, 'F');
+      doc.roundedRect(ml, y, 22, cardH, 4, 4, 'F');
+      doc.rect(ml + 16, y, 6, cardH, 'F');  // coins droits carrés
 
-      // Texte vertical "FACTURÉ À"
+      // Texte vertical "FACTURÉ À" centré dans la hauteur
       setColor(C.white);
       setFont('bold', 7);
-      doc.text('FACTURÉ À', ml + 11, y + 30, { angle: 90, align: 'left' });
+      doc.text('FACTURÉ À', ml + 11, y + cardH - 4, { angle: 90, align: 'left' });
 
       // Infos client
       const cx = ml + 26;
@@ -836,18 +852,12 @@
       setFont('normal', 8.5);
       setColor(C.textMd);
       let cy2 = y + 17;
-      const clientLines = [
-        R.clientAddress?.value,
-        R.clientExtra?.value,
-        [R.clientTel?.value, R.clientEmail?.value].filter(Boolean).join('   |   '),
-        R.clientSiret?.value ? `SIRET / IFU : ${R.clientSiret.value}` : null
-      ].filter(Boolean);
       clientLines.forEach(line => {
         doc.text(line, cx, cy2);
         cy2 += 5;
       });
 
-      y += 44;
+      y += cardH + 8;
 
       // ════════════════════════════════════════════════
       // TABLEAU DES PRESTATIONS
