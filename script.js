@@ -1,17 +1,50 @@
 /**
  * ProGestion — script principal
- * Corrections : double toast, opacity drag, compteur, @media CSS manquant,
- *               remise, notes, pro forma, validité, PDF amélioré.
+ * Supabase Auth + limite 10 documents par utilisateur.
  */
 (function () {
   'use strict';
+
+  /* ============================================================
+     SUPABASE
+     ============================================================ */
+  const SUPABASE_URL  = 'https://qpmxaxcyvwqhjhcbbjhc.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwbXhheGN5dndxaGpoY2JiamhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDg1NjAsImV4cCI6MjA5MTU4NDU2MH0.D9KZ9-b1LK5oHH8W7sX0pYScQHWM0exJWTv8Mtbpvdg';
+
+  // Guard : si la lib Supabase n'est pas chargée, on crée un stub silencieux
+  // pour que l'app démarre quand même et que les boutons restent fonctionnels.
+  let supabase;
+  try {
+    if (!window.supabase?.createClient) throw new Error('Supabase SDK non disponible');
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  } catch (e) {
+    console.error('Supabase non chargé :', e);
+    // Stub minimaliste — les méthodes retournent des objets vides
+    supabase = {
+      auth: {
+        getSession:        async () => ({ data: { session: null }, error: null }),
+        onAuthStateChange: ()       => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithPassword:async () => ({ error: { message: 'Serveur indisponible' } }),
+        signUp:            async () => ({ error: { message: 'Serveur indisponible' } }),
+        signOut:           async () => ({})
+      },
+      from: () => ({
+        select: () => ({ count: 'exact', head: true, eq: () => ({ eq: () => ({}) }) }),
+        insert: async () => ({ error: null }),
+        update: () => ({ eq: () => ({ eq: () => ({}) }) }),
+        delete: () => ({ eq: () => ({ eq: () => ({}) }) })
+      })
+    };
+  }
+
+  const DOC_LIMIT    = 10;
+  const WA_NUMBER    = '22968908277';
 
   /* ============================================================
      CONFIGURATION
      ============================================================ */
   const STORAGE_KEYS = {
     draft:    'pg_draft.v5',
-    history:  'pg_history.v5',
     counters: 'pg_counters.v5'
   };
 
@@ -25,12 +58,14 @@
      ÉTAT GLOBAL
      ============================================================ */
   const state = {
-    mode:         'devis',
-    logoDataURL:  null,
-    draftId:      uid(),
-    _saveTimer:   null,
+    mode:          'devis',
+    logoDataURL:   null,
+    draftId:       uid(),
+    _saveTimer:    null,
     _autosaveTimer: null,
-    draggedRow:   null
+    draggedRow:    null,
+    currentUser:   null,   // objet Supabase user
+    docCount:      0       // nombre de docs sauvegardés pour cet utilisateur
   };
 
   /* ============================================================
@@ -115,7 +150,8 @@
     'clientName','clientAddress','clientExtra','clientSiret','clientTel','clientEmail',
     'logoUpload','logoPreview','logoPlaceholder',
     'placeOfIssue','currentDate',
-    'docNotes','validityContainer','autosaveBar'
+    'docNotes','validityContainer','autosaveBar',
+    'signatoryName','signatoryRole'
   ];
 
   function cacheRefs() {
@@ -396,6 +432,8 @@
       discountRate:    num(R.discountRate?.value, 0),
       notes:      R.docNotes?.value     || '',
       placeOfIssue: R.placeOfIssue?.value || '',
+      signatoryName: R.signatoryName?.value || '',
+      signatoryRole: R.signatoryRole?.value || '',
       emitter: {
         name:    R.emitterName?.value    || '',
         address: R.emitterAddress?.value || '',
@@ -444,6 +482,8 @@
     set('currency',    data.currency || 'CFA');
     set('placeOfIssue', data.placeOfIssue);
     set('docNotes',    data.notes);
+    set('signatoryName', data.signatoryName);
+    if (R.signatoryRole) R.signatoryRole.value = data.signatoryRole || '';
 
     if (R.vatEnabled)  R.vatEnabled.checked  = data.vatEnabled !== false;
     if (R.vatRate)     R.vatRate.value        = data.vatRate ?? 18;
@@ -529,6 +569,8 @@
     if (R.docValidity) R.docValidity.value = '';
     if (R.docNotes)    R.docNotes.value    = '';
     if (R.placeOfIssue) R.placeOfIssue.value = '';
+    if (R.signatoryName) R.signatoryName.value = '';
+    if (R.signatoryRole) R.signatoryRole.value = '';
     if (R.currency)    R.currency.value    = 'CFA';
     if (R.vatEnabled)  R.vatEnabled.checked = true;
     if (R.vatRate)     R.vatRate.value      = 18;
@@ -550,41 +592,60 @@
   }
 
   /* ============================================================
-     HISTORIQUE
+     HISTORIQUE — stockage local scopé par utilisateur
      ============================================================ */
+  function historyKey() {
+    return state.currentUser
+      ? `pg_history.v5.${state.currentUser.id}`
+      : 'pg_history.v5.anon';
+  }
+
   function getHistory() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.history)) || []; }
+    try { return JSON.parse(localStorage.getItem(historyKey())) || []; }
     catch { return []; }
   }
 
   function saveHistory(hist) {
-    localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(hist.slice(0, 60)));
+    localStorage.setItem(historyKey(), JSON.stringify(hist.slice(0, 60)));
   }
 
   /**
-   * Correction : détection de doublon par docNumber + mode uniquement
-   * (updatedAt changeait à chaque sauvegarde auto → jamais de doublon détecté)
+   * Sauvegarde en localStorage ET dans Supabase si connecté.
+   * Vérifie la limite avant d'ajouter un NOUVEAU document.
    */
-  function archiveDocument() {
+  async function archiveDocument() {
     const data = collectData();
     data.savedAt = new Date().toISOString();
 
-    const hist = getHistory();
+    const hist   = getHistory();
     const dupIdx = hist.findIndex(
       it => it.docNumber === data.docNumber && it.mode === data.mode
     );
+    const isNew  = dupIdx < 0;
 
+    // Vérification limite pour un NOUVEAU document
+    if (isNew && state.currentUser) {
+      if (state.docCount >= DOC_LIMIT) {
+        showLimitModal();
+        return;
+      }
+    }
+
+    // Mise à jour localStorage
     if (dupIdx >= 0) {
-      // Remplacer la version existante
       hist[dupIdx] = data;
     } else {
       hist.unshift(data);
     }
-
     saveHistory(hist);
     populateClientDatalist();
-    // Un seul toast ici (correction du bug original du double toast)
-    toast('Document sauvegardé dans l\'historique', 'success');
+
+    // Sync Supabase
+    if (state.currentUser) {
+      await syncDocumentToSupabase(data, isNew);
+    }
+
+    toast('Document sauvegardé', 'success');
   }
 
   function renderHistory() {
@@ -652,10 +713,13 @@
         const idx = parseInt(delBtn.dataset.idx, 10);
         const h   = getHistory();
         if (h[idx] && confirm(`Supprimer "${h[idx].docNumber || 'ce document'}" ?`)) {
+          const deleted = h[idx];
           h.splice(idx, 1);
           saveHistory(h);
           renderHistory();
           toast('Document supprimé', 'warning');
+          // Sync suppression Supabase
+          deleteDocFromSupabase(deleted.docNumber, deleted.mode);
         }
       }
     };
@@ -1012,28 +1076,54 @@
       // ════════════════════════════════════════════════
       // SIGNATURE
       // ════════════════════════════════════════════════
-      const sigY = y;
+      const signatoryName = R.signatoryName?.value?.trim() || '';
+      const signatoryRole = R.signatoryRole?.value?.trim() || '';
+
+      // Hauteur dynamique : label(6) + ligne(14) + [nom(5)] + [rôle(5)] + marges(8)
+      const sigExtraH = (signatoryName ? 5 : 0) + (signatoryRole ? 5 : 0);
+      const sigBoxH   = 28 + sigExtraH;
+      const sigBoxW   = 80;
+      const sigY      = y;
 
       setFill(C.lightBg);
       setDraw(C.line, 0.3);
-      doc.roundedRect(ml, sigY, 70, 28, 3, 3, 'FD');
+      doc.roundedRect(ml, sigY, sigBoxW, sigBoxH, 3, 3, 'FD');
 
-      setFont('bold', 7.5);
+      // Étiquette "CACHET ET SIGNATURE"
+      setFont('bold', 7);
       setColor(C.textMd);
       doc.text('CACHET ET SIGNATURE', ml + 4, sigY + 6);
 
-      // Ligne de signature
+      // Ligne de signature (espace vide pour la signature manuscrite)
       setDraw(C.blue, 0.5);
-      doc.line(ml + 4, sigY + 22, ml + 60, sigY + 22);
+      const lineY = sigY + 20;
+      doc.line(ml + 4, lineY, ml + sigBoxW - 6, lineY);
 
-      // Lieu / date
+      // Nom du signataire sous la ligne
+      let sigTextY = lineY + 5;
+      if (signatoryName) {
+        setFont('bold', 8.5);
+        setColor(C.textDk);
+        doc.text(signatoryName, ml + 4, sigTextY);
+        sigTextY += 5;
+      }
+
+      // Rôle en italique
+      if (signatoryRole) {
+        setFont('normal', 7.5);
+        setColor(C.textMd);
+        doc.text(signatoryRole, ml + 4, sigTextY);
+      }
+
+      // Lieu / date (à droite de la zone signature)
       const place = R.placeOfIssue?.value;
       if (place) {
         setFont('normal', 8);
         setColor(C.textMd);
+        const placeX = ml + sigBoxW + 8;
         doc.text(
           `Fait à ${place}, le ${new Date().toLocaleDateString('fr-FR')}`,
-          ml + 76, sigY + 14
+          placeX, sigY + sigBoxH / 2 + 2
         );
       }
 
@@ -1217,9 +1307,12 @@
     const allInputs = [
       R.emitterName, R.emitterAddress, R.emitterExtra, R.emitterTel, R.emitterEmail,
       R.clientName, R.clientAddress, R.clientExtra, R.clientSiret, R.clientTel, R.clientEmail,
-      R.docNumber, R.docDate, R.docValidity, R.placeOfIssue, R.docNotes
+      R.docNumber, R.docDate, R.docValidity, R.placeOfIssue, R.docNotes,
+      R.signatoryName
     ];
     allInputs.forEach(el => el?.addEventListener('input', scheduleSave));
+    // Select rôle signataire → sauvegarde auto
+    R.signatoryRole?.addEventListener('change', scheduleSave);
 
     // Logo
     R.logoPlaceholder?.addEventListener('click', () => R.logoUpload?.click());
@@ -1256,15 +1349,328 @@
   }
 
   /* ============================================================
-     INITIALISATION
+     SUPABASE — SYNCHRONISATION DOCUMENTS
      ============================================================ */
-  function init() {
-    cacheRefs();
-    bindEvents();
+  async function syncDocumentToSupabase(data, isNew) {
+    try {
+      const payload = {
+        user_id:    state.currentUser.id,
+        mode:       data.mode,
+        doc_number: data.docNumber,
+        doc_date:   data.docDate || null,
+        client_name: data.client?.name || '',
+        total_ttc:  computeTTC(data),
+        data:       data
+      };
+
+      if (isNew) {
+        const { error } = await supabase.from('documents').insert(payload);
+        if (!error) {
+          state.docCount++;
+          updateCounterBadge();
+        }
+      } else {
+        await supabase
+          .from('documents')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('user_id', state.currentUser.id)
+          .eq('doc_number', data.docNumber)
+          .eq('mode', data.mode);
+      }
+    } catch (e) {
+      console.error('Erreur sync Supabase :', e);
+    }
+  }
+
+  async function loadDocCountFromSupabase() {
+    if (!state.currentUser) return;
+    try {
+      const { count } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', state.currentUser.id);
+      state.docCount = count || 0;
+      updateCounterBadge();
+    } catch (e) {
+      console.error('Erreur comptage docs :', e);
+    }
+  }
+
+  async function loadHistoryFromSupabase() {
+    if (!state.currentUser) return;
+    try {
+      const { data: rows, error } = await supabase
+        .from('documents')
+        .select('data, created_at, updated_at')
+        .eq('user_id', state.currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(60);
+
+      if (error || !rows?.length) return;
+
+      // Fusionner avec le cache local (le remote fait foi)
+      const remoteHist = rows.map(r => ({
+        ...r.data,
+        savedAt: r.updated_at || r.created_at
+      }));
+      saveHistory(remoteHist);
+    } catch (e) {
+      console.error('Erreur chargement historique Supabase :', e);
+    }
+  }
+
+  async function deleteDocFromSupabase(docNumber, mode) {
+    if (!state.currentUser) return;
+    try {
+      await supabase
+        .from('documents')
+        .delete()
+        .eq('user_id', state.currentUser.id)
+        .eq('doc_number', docNumber)
+        .eq('mode', mode);
+      state.docCount = Math.max(0, state.docCount - 1);
+      updateCounterBadge();
+    } catch (e) {
+      console.error('Erreur suppression Supabase :', e);
+    }
+  }
+
+  /* ============================================================
+     SUPABASE — AUTHENTIFICATION
+     ============================================================ */
+
+  /** Appelé dès que la session change (connexion, déconnexion, expiration) */
+  function onAuthStateChange(session) {
+    if (session?.user) {
+      state.currentUser = session.user;
+      showApp();
+    } else {
+      state.currentUser = null;
+      state.docCount    = 0;
+      showAuthModal();
+    }
+  }
+
+  function showApp() {
+    // Cacher la modale auth
+    const overlay = document.getElementById('authOverlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // Afficher le pill utilisateur
+    if (R.userPill)   R.userPill.style.display   = 'flex';
+    if (R.userEmail)  R.userEmail.textContent     = state.currentUser.email;
+
+    // Charger compteur et historique depuis Supabase
+    loadDocCountFromSupabase();
+    loadHistoryFromSupabase();
+
+    // Charger le brouillon local
     loadDraft();
     recalculate();
     ensureOneRow();
     populateClientDatalist();
+  }
+
+  function showAuthModal() {
+    const overlay = document.getElementById('authOverlay');
+    if (overlay) overlay.style.display = 'flex';
+    if (R.userPill) R.userPill.style.display = 'none';
+  }
+
+  function showLimitModal() {
+    const overlay = document.getElementById('limitOverlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function updateCounterBadge() {
+    const badge = document.getElementById('docCounterBadge');
+    if (!badge) return;
+    badge.textContent = `${state.docCount}/${DOC_LIMIT}`;
+    badge.classList.remove('warn', 'full');
+    if (state.docCount >= DOC_LIMIT)       badge.classList.add('full');
+    else if (state.docCount >= DOC_LIMIT - 3) badge.classList.add('warn');
+  }
+
+  /* Helpers pour afficher/cacher le loader sur les boutons auth */
+  function setAuthLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    const txt = btn.querySelector('.btn-text');
+    const ico = btn.querySelector('.btn-loader');
+    if (txt) txt.style.display = loading ? 'none' : '';
+    if (ico) ico.style.display = loading ? '' : 'none';
+  }
+
+  function showAuthError(elId, msg) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('visible');
+    setTimeout(() => el.classList.remove('visible'), 5000);
+  }
+
+  function clearAuthError(elId) {
+    const el = document.getElementById(elId);
+    if (el) { el.textContent = ''; el.classList.remove('visible'); }
+  }
+
+  /* ============================================================
+     LIAISONS ÉVÉNEMENTS AUTH
+     ============================================================ */
+  function bindAuthEvents() {
+    // Toggle tabs connexion / inscription
+    document.getElementById('tabLogin')?.addEventListener('click', () => {
+      document.getElementById('tabLogin').classList.add('active');
+      document.getElementById('tabRegister').classList.remove('active');
+      document.getElementById('formLogin').style.display    = '';
+      document.getElementById('formRegister').style.display = 'none';
+      clearAuthError('loginError');
+    });
+
+    document.getElementById('tabRegister')?.addEventListener('click', () => {
+      document.getElementById('tabRegister').classList.add('active');
+      document.getElementById('tabLogin').classList.remove('active');
+      document.getElementById('formRegister').style.display = '';
+      document.getElementById('formLogin').style.display    = 'none';
+      clearAuthError('registerError');
+    });
+
+    // Afficher/masquer mot de passe
+    document.querySelectorAll('.toggle-pw').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(btn.dataset.target);
+        if (!inp) return;
+        const isHidden = inp.type === 'password';
+        inp.type = isHidden ? 'text' : 'password';
+        btn.querySelector('i').className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+      });
+    });
+
+    // ── CONNEXION ──
+    document.getElementById('formLogin')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAuthError('loginError');
+      const email    = document.getElementById('loginEmail')?.value?.trim();
+      const password = document.getElementById('loginPassword')?.value;
+
+      if (!email || !password) {
+        showAuthError('loginError', 'Veuillez remplir tous les champs.');
+        return;
+      }
+
+      setAuthLoading('btnLogin', true);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setAuthLoading('btnLogin', false);
+
+      if (error) {
+        const msgs = {
+          'Invalid login credentials':        'Email ou mot de passe incorrect.',
+          'Email not confirmed':               'Veuillez confirmer votre email avant de vous connecter.',
+          'Too many requests':                 'Trop de tentatives. Réessayez dans quelques minutes.'
+        };
+        showAuthError('loginError', msgs[error.message] || error.message);
+      }
+      // onAuthStateChange sera appelé automatiquement par Supabase
+    });
+
+    // ── INSCRIPTION ──
+    document.getElementById('formRegister')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAuthError('registerError');
+      const email   = document.getElementById('regEmail')?.value?.trim();
+      const pass    = document.getElementById('regPassword')?.value;
+      const confirm = document.getElementById('regConfirm')?.value;
+
+      if (!email || !pass || !confirm) {
+        showAuthError('registerError', 'Veuillez remplir tous les champs.');
+        return;
+      }
+      if (pass.length < 8) {
+        showAuthError('registerError', 'Le mot de passe doit contenir au moins 8 caractères.');
+        return;
+      }
+      if (pass !== confirm) {
+        showAuthError('registerError', 'Les mots de passe ne correspondent pas.');
+        return;
+      }
+
+      setAuthLoading('btnRegister', true);
+      const { data: signData, error } = await supabase.auth.signUp({ email, password: pass });
+      setAuthLoading('btnRegister', false);
+
+      if (error) {
+        showAuthError('registerError', error.message);
+        return;
+      }
+
+      // Si email de confirmation désactivé dans Supabase → connexion directe
+      if (signData?.session) {
+        // onAuthStateChange se charge du reste
+      } else {
+        showAuthError('registerError', '');
+        toast('Compte créé ! Vérifiez votre email pour confirmer.', 'success', 5000);
+        // Basculer vers l'onglet connexion
+        document.getElementById('tabLogin')?.click();
+      }
+    });
+
+    // ── DÉCONNEXION ──
+    document.getElementById('btnLogout')?.addEventListener('click', async () => {
+      if (!confirm('Se déconnecter ?')) return;
+      await supabase.auth.signOut();
+      // onAuthStateChange repassera à showAuthModal
+    });
+
+    // ── FERMER MODALE LIMITE ──
+    document.getElementById('btnLimitClose')?.addEventListener('click', () => {
+      document.getElementById('limitOverlay').style.display = 'none';
+    });
+  }
+
+  /* ============================================================
+     INITIALISATION — robuste, garde auth Supabase
+     ============================================================ */
+  async function init() {
+    // 1. Cacher l'appli, montrer la modale auth par défaut
+    //    (sera masquée après vérification session)
+    const authOverlay = document.getElementById('authOverlay');
+    if (authOverlay) authOverlay.style.display = 'flex';
+
+    // 2. Câbler tous les éléments DOM
+    cacheRefs();
+    R.userPill        = document.getElementById('userPill');
+    R.userEmail       = document.getElementById('userEmail');
+    R.docCounterBadge = document.getElementById('docCounterBadge');
+
+    // 3. Attacher TOUS les événements (app + auth)
+    //    → les boutons fonctionnent même sans réseau
+    bindEvents();
+    bindAuthEvents();
+
+    // Date courante dans la zone signature
+    if (R.currentDate) {
+      R.currentDate.textContent = new Date().toLocaleDateString('fr-FR');
+    }
+
+    // 4. Supabase — vérification session
+    try {
+      // Écouter les changements futurs (refresh token, logout…)
+      supabase.auth.onAuthStateChange((_event, session) => {
+        onAuthStateChange(session);
+      });
+
+      // Vérifier la session existante
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      onAuthStateChange(data?.session ?? null);
+
+    } catch (err) {
+      console.error('Erreur Supabase init :', err);
+      // En cas d'erreur réseau, on reste sur la modale auth
+      // avec un message discret
+      toast('Connexion au serveur impossible. Vérifiez votre réseau.', 'error', 5000);
+    }
   }
 
   if (document.readyState === 'loading') {

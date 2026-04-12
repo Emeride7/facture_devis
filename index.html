@@ -13,6 +13,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -43,6 +45,15 @@
     </div>
 
     <div class="toolbar-right">
+      <!-- Indicateur utilisateur connecté -->
+      <div class="user-pill" id="userPill" style="display:none">
+        <i class="fas fa-user-circle"></i>
+        <span id="userEmail" class="user-email-text"></span>
+        <span class="doc-counter-badge" id="docCounterBadge">0/10</span>
+        <button type="button" class="btn-logout" id="btnLogout" title="Se déconnecter">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
       <button type="button" class="btn-action btn-history" id="btnHistory" title="Historique">
         <i class="fas fa-history"></i>
         <span class="btn-label">Historique</span>
@@ -259,6 +270,19 @@
       <div class="signature-section">
         <div class="signature-left">
           <div class="signature-label">Cachet et signature</div>
+          <div class="signature-fields">
+            <input type="text" id="signatoryName" class="inline-input sig-name-input" placeholder="Nom et prénom du signataire">
+            <select id="signatoryRole" class="inline-select">
+              <option value="">— Rôle —</option>
+              <option value="Directeur Général">Directeur Général</option>
+              <option value="Directeur">Directeur</option>
+              <option value="Directeur Commercial">Directeur Commercial</option>
+              <option value="Comptable">Comptable</option>
+              <option value="Secrétaire">Secrétaire</option>
+              <option value="Responsable Administratif">Responsable Administratif</option>
+              <option value="Gérant">Gérant</option>
+            </select>
+          </div>
           <div class="signature-line"></div>
         </div>
         <div class="signature-right">
@@ -295,6 +319,94 @@
   <!-- Datalists autocomplétion -->
   <datalist id="clientDatalist"></datalist>
   <datalist id="itemDatalist"></datalist>
+
+  <!-- ===== MODALE AUTHENTIFICATION ===== -->
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo"><i class="fas fa-file-invoice"></i></div>
+        <h1 class="auth-title">ProGestion</h1>
+        <p class="auth-subtitle">Gérez vos devis et factures en toute simplicité</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" id="tabLogin">Se connecter</button>
+        <button type="button" class="auth-tab" id="tabRegister">Créer un compte</button>
+      </div>
+
+      <!-- Formulaire connexion -->
+      <form class="auth-form" id="formLogin" novalidate>
+        <div class="auth-field">
+          <label for="loginEmail"><i class="fas fa-envelope"></i> Adresse e-mail</label>
+          <input type="email" id="loginEmail" placeholder="votre@email.com" autocomplete="email" required>
+        </div>
+        <div class="auth-field">
+          <label for="loginPassword"><i class="fas fa-lock"></i> Mot de passe</label>
+          <div class="password-wrap">
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required>
+            <button type="button" class="toggle-pw" data-target="loginPassword" title="Afficher/masquer"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="auth-error" id="loginError"></div>
+        <button type="submit" class="auth-submit" id="btnLogin">
+          <span class="btn-text">Se connecter</span>
+          <i class="fas fa-spinner fa-spin btn-loader" style="display:none"></i>
+        </button>
+      </form>
+
+      <!-- Formulaire inscription -->
+      <form class="auth-form" id="formRegister" novalidate style="display:none">
+        <div class="auth-field">
+          <label for="regEmail"><i class="fas fa-envelope"></i> Adresse e-mail</label>
+          <input type="email" id="regEmail" placeholder="votre@email.com" autocomplete="email" required>
+        </div>
+        <div class="auth-field">
+          <label for="regPassword"><i class="fas fa-lock"></i> Mot de passe</label>
+          <div class="password-wrap">
+            <input type="password" id="regPassword" placeholder="Min. 8 caractères" autocomplete="new-password" required minlength="8">
+            <button type="button" class="toggle-pw" data-target="regPassword" title="Afficher/masquer"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="auth-field">
+          <label for="regConfirm"><i class="fas fa-lock"></i> Confirmer le mot de passe</label>
+          <div class="password-wrap">
+            <input type="password" id="regConfirm" placeholder="Répéter le mot de passe" autocomplete="new-password" required>
+            <button type="button" class="toggle-pw" data-target="regConfirm" title="Afficher/masquer"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="auth-error" id="registerError"></div>
+        <button type="submit" class="auth-submit" id="btnRegister">
+          <span class="btn-text">Créer mon compte</span>
+          <i class="fas fa-spinner fa-spin btn-loader" style="display:none"></i>
+        </button>
+      </form>
+
+      <p class="auth-footer">Vos données sont sécurisées et privées.</p>
+    </div>
+  </div>
+
+  <!-- ===== MODALE LIMITE ATTEINTE ===== -->
+  <div class="limit-overlay" id="limitOverlay" style="display:none">
+    <div class="limit-card">
+      <div class="limit-icon"><i class="fas fa-lock"></i></div>
+      <h2 class="limit-title">Limite atteinte</h2>
+      <p class="limit-msg">
+        Vous avez atteint la limite gratuite de <strong>10 documents</strong>.<br>
+        Veuillez contacter l'administrateur pour continuer.
+      </p>
+      <a
+        href="https://wa.me/22968908277?text=Bonjour%2C%20j'ai%20atteint%20la%20limite%20de%2010%20documents%20sur%20ProGestion%20et%20je%20souhaite%20continuer."
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn-whatsapp"
+      >
+        <i class="fab fa-whatsapp"></i> Contacter l'administrateur sur WhatsApp
+      </a>
+      <button type="button" class="btn-limit-close" id="btnLimitClose">
+        Fermer
+      </button>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
