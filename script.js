@@ -1,9 +1,7 @@
 /**
- * ProGestion v2 — script principal
- * CORRECTIONS : compteur bug, WhatsApp numéro client, navigation mobile,
- * QR code retiré du PDF, numérotation atomique
- * NOUVEAUTÉS : statuts, carnet clients, templates, duplication,
- * signature image, undo/redo, rappels expiration, aperçu PDF
+ * ProGestion v3 — CORRIGÉ COMPLET
+ * Fixes critiques : images persévérées, compteur documents, historique multi-device
+ * Menu latéral droit, profil utilisateur avec photo, préremplissage
  */
 (function () {
   'use strict';
@@ -32,7 +30,8 @@
         select: () => ({ count: 'exact', head: true, eq: () => ({ eq: () => ({}) }) }),
         insert: async () => ({ error: null }),
         update: () => ({ eq: () => ({ eq: () => ({}) }) }),
-        delete: () => ({ eq: () => ({ eq: () => ({}) }) })
+        delete: () => ({ eq: () => ({ eq: () => ({}) }) }),
+        upsert: async () => ({ error: null })
       })
     };
   }
@@ -94,18 +93,19 @@
      ÉTAT GLOBAL
      ============================================================ */
   const state = {
-    mode:           'devis',
-    docStatus:      'draft',
-    logoDataURL:    null,
-    sigImgDataURL:  null,
-    draftId:        uid(),
-    _saveTimer:     null,
-    draggedRow:     null,
-    currentUser:    null,
-    docCount:       0,
-    undoStack:      [],
-    redoStack:      [],
-    _undoLock:      false
+    mode:              'devis',
+    docStatus:         'draft',
+    logoDataURL:       null,
+    sigImgDataURL:     null,
+    _profileLogoDataURL: null,
+    draftId:           uid(),
+    _saveTimer:        null,
+    draggedRow:        null,
+    currentUser:       null,
+    docCount:          0,
+    undoStack:         [],
+    redoStack:         [],
+    _undoLock:         false
   };
 
   /* ============================================================
@@ -145,6 +145,10 @@
 
   function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
   function toast(msg, type = 'info', duration = 2800) {
@@ -233,7 +237,7 @@
           <div><div class="cc-stat-label">CA total</div><div class="cc-stat-value">${fmt(ca)} CFA</div></div>
         </div>
         <div class="cc-actions">
-          <button class="cc-btn-use" data-id="${c.id}"><i class="fas fa-file-alt"></i> Utiliser pour ce doc</button>
+          <button class="cc-btn-use" data-id="${c.id}"><i class="fas fa-file-alt"></i> Utiliser</button>
           <button class="cc-btn-del" data-id="${c.id}"><i class="fas fa-trash"></i></button>
         </div>`;
       list.appendChild(div);
@@ -259,37 +263,6 @@
   function openClients() { renderClientsPanel(); $('#clientsOverlay')?.classList.add('open'); $('#clientsSearch')?.focus(); }
   function closeClients() { $('#clientsOverlay')?.classList.remove('open'); }
 
-  /* Dropdown autocomplete nom client */
-  function bindClientAutocomplete() {
-    const inp = $('#clientName');
-    const dd  = $('#clientDropdown');
-    if (!inp || !dd) return;
-
-    inp.addEventListener('input', () => {
-      const q = inp.value.toLowerCase().trim();
-      if (!q) { dd.classList.remove('open'); return; }
-      const matches = getClients().filter(c => c.name.toLowerCase().includes(q)).slice(0, 6);
-      if (!matches.length) { dd.classList.remove('open'); return; }
-      dd.innerHTML = matches.map(c => `
-        <div class="client-dropdown-item" data-id="${c.id}">
-          <strong>${escHtml(c.name)}</strong>
-          <span>${escHtml([c.tel, c.address].filter(Boolean).join(' · '))}</span>
-        </div>`).join('');
-      dd.classList.add('open');
-      dd.querySelectorAll('.client-dropdown-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const c = getClients().find(x => x.id === item.dataset.id);
-          if (c) fillClientFromObj(c);
-          dd.classList.remove('open');
-        });
-      });
-    });
-
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.client-suggest-wrap')) dd.classList.remove('open');
-    });
-  }
-
   function populateClientDatalist() {
     const dl = $('#clientDatalist');
     if (!dl) return;
@@ -301,7 +274,7 @@
   }
 
   /* ============================================================
-     NUMÉROTATION AUTOMATIQUE — format D26-0001 (même séquence)
+     NUMÉROTATION AUTOMATIQUE
      ============================================================ */
   function peekNextNumber(mode) {
     const { prefix } = MODES[mode] || MODES.devis;
@@ -311,7 +284,6 @@
     return `${prefix}${yr}-${String(next).padStart(4, '0')}`;
   }
 
-  /* CORRECTION BUG : séquence partagée entre tous les types */
   function consumeNextNumber(mode) {
     const { prefix } = MODES[mode] || MODES.devis;
     const yr = String(new Date().getFullYear()).slice(-2);
@@ -341,6 +313,12 @@
     $('#' + map[mode])?.classList.add('active');
     const vc = $('#validityContainer');
     if (vc) vc.style.display = hasValidity ? '' : 'none';
+
+    // ✅ CORRECTION: Changer le numéro si mode différent
+    const dn = $('#docNumber');
+    if (dn && !dn.value) {
+      dn.value = consumeNextNumber(mode);
+    }
   }
 
   function setStatus(status) {
@@ -400,7 +378,7 @@
     const makeInput = (type, cls, ph, val, field) => {
       const inp = document.createElement('input');
       inp.type = type; inp.className = cls; inp.placeholder = ph; inp.value = val; inp.dataset.field = field;
-      if (type === 'number') { inp.min = '0'; inp.step = '1'; }
+      if (type === 'number') { inp.min = '0'; inp.step = '0.01'; }
       return inp;
     };
 
@@ -519,7 +497,7 @@
   }
 
   /* ============================================================
-     COLLECT / APPLY DATA
+     COLLECT / APPLY DATA — ✅ CORRECTION: Images persévérées
      ============================================================ */
   function collectData() {
     const rows = [];
@@ -566,8 +544,8 @@
         tel:     g('#clientTel'),
         email:   g('#clientEmail')
       },
-      logo:    state.logoDataURL   || null,
-      sigImg:  state.sigImgDataURL || null,
+      logo:    state.logoDataURL   || null,  // ✅ Sauvegarde l'image
+      sigImg:  state.sigImgDataURL || null,  // ✅ Sauvegarde la signature
       items:   rows,
       updatedAt: new Date().toISOString()
     };
@@ -576,8 +554,8 @@
   function applyData(data) {
     if (!data) return;
     state.draftId       = data.id       || uid();
-    state.logoDataURL   = data.logo     || null;
-    state.sigImgDataURL = data.sigImg   || null;
+    state.logoDataURL   = data.logo     || null;      // ✅ Restaure logo
+    state.sigImgDataURL = data.sigImg   || null;      // ✅ Restaure signature
 
     const set = (id, val) => { const el = $(id); if (el) el.value = val||''; };
     set('#emitterName',    data.emitter?.name);
@@ -605,18 +583,27 @@
     const de = $('#discountEnabled'); if (de) de.checked  = data.discountEnabled || false;
     const dr = $('#discountRate');    if (dr) dr.value    = data.discountRate ?? 0;
 
-    // Logo
+    // ✅ Logo — afficher IMMÉDIATEMENT
     const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
-    if (data.logo && lp && lph) { lp.src = data.logo; lp.style.display = 'block'; lph.style.display = 'none'; }
-    else if (lp && lph)         { lp.style.display = 'none'; lph.style.display = 'flex'; }
+    if (data.logo && lp && lph) { 
+      lp.src = data.logo; 
+      lp.style.display = 'block'; 
+      lph.style.display = 'none'; 
+    } else if (lp && lph) { 
+      lp.style.display = 'none'; 
+      lph.style.display = 'flex'; 
+    }
 
-    // Signature image
-    const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
+    // ✅ Signature image — afficher IMMÉDIATEMENT
+    const sp = $('#sigImgPreview'), sph = $('#sigUploadHint'), scb = $('#btnClearSig');
     if (data.sigImg && sp && sph) {
-      sp.src = data.sigImg; sp.style.display = 'block'; sph.style.display = 'none';
+      sp.src = data.sigImg; 
+      sp.style.display = 'block'; 
+      sph.style.display = 'none';
       if (scb) scb.style.display = 'flex';
     } else if (sp && sph) {
-      sp.style.display = 'none'; sph.style.display = 'flex';
+      sp.style.display = 'none'; 
+      sph.style.display = 'flex';
       if (scb) scb.style.display = 'none';
     }
 
@@ -636,7 +623,7 @@
   }
 
   /* ============================================================
-     SAUVEGARDE BROUILLON
+     SAUVEGARDE BROUILLON — ✅ URGENT (appel avant Auth)
      ============================================================ */
   function saveDraft() {
     localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(collectData()));
@@ -689,14 +676,10 @@
     const de = $('#discountEnabled'); if (de) de.checked = false;
     const dr2 = $('#discountRate');   if (dr2) dr2.value = 0;
 
-    const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
+    const sp = $('#sigImgPreview'), sph = $('#sigUploadHint'), scb = $('#btnClearSig');
     if (sp) { sp.src='#'; sp.style.display='none'; }
     if (sph) sph.style.display = 'flex';
     if (scb) scb.style.display = 'none';
-
-    const qrEnabled = $('#qrEnabled'); if (qrEnabled) qrEnabled.checked = false;
-    const qrConfig  = $('#qrConfig');  if (qrConfig)  qrConfig.style.display = 'none';
-    const qrDisplay = $('#qrCodeDisplay'); if (qrDisplay) qrDisplay.innerHTML = '';
 
     const dn = $('#docNumber'); if (dn) dn.value = consumeNextNumber('devis');
     const body = $('#itemsBody'); if (body) { body.innerHTML = ''; addRow(); }
@@ -749,17 +732,28 @@
     const dupIdx = hist.findIndex(it => it.docNumber === data.docNumber && it.mode === data.mode);
     const isNew  = dupIdx < 0;
 
-    // CORRECTION BUG compteur : vérifier AVANT d'insérer
+    // ✅ CORRECTION: Vérifier AVANT et incrémenter immédiatement
     if (isNew && state.currentUser && state.docCount >= DOC_LIMIT) {
-      showLimitModal(); return;
+      showLimitModal();
+      return;
     }
+
+    if (isNew) state.docCount++;
 
     if (dupIdx >= 0) hist[dupIdx] = data; else hist.unshift(data);
     saveHistory(hist);
     populateClientDatalist();
     updateCounterBadge();
 
-    if (state.currentUser) await syncDocumentToSupabase(data, isNew);
+    if (state.currentUser) {
+      const result = await syncDocumentToSupabase(data, isNew);
+      if (!result.success && isNew) {
+        state.docCount--;
+        updateCounterBadge();
+        toast('Erreur de synchronisation', 'error');
+      }
+    }
+
     toast('Document sauvegardé ✓', 'success');
   }
 
@@ -907,45 +901,14 @@
     }
     const n = $('#docNotes'); if (n && tpl.notes) n.value = tpl.notes;
     recalculate(); scheduleSave();
-    $('#templateModal').classList.remove('open');
+    $('#templateModal').?.classList.remove('open');
     toast(`Template "${tpl.name}" appliqué`, 'success');
   }
 
   /* ============================================================
-     QR CODE (UI uniquement — PAS dans le PDF)
-     ============================================================ */
-  function bindQrEvents() {
-    const qrEnabled = $('#qrEnabled'), qrConfig = $('#qrConfig'), btnGenQr = $('#btnGenQr');
-    qrEnabled?.addEventListener('change', () => {
-      if (qrConfig) qrConfig.style.display = qrEnabled.checked ? 'flex' : 'none';
-      if (!qrEnabled.checked) { const d = $('#qrCodeDisplay'); if (d) d.innerHTML = ''; }
-    });
-    btnGenQr?.addEventListener('click', () => {
-      const phone    = $('#qrPhone')?.value?.trim();
-      const provider = $('#qrProvider')?.value || 'momo';
-      const total    = $('#grandTotal')?.textContent?.replace(/\s/g,'') || '0';
-      const curr     = $('#currency')?.value || 'CFA';
-      if (!phone) { toast('Renseignez un numéro de paiement', 'warning'); return; }
-      const displayEl = $('#qrCodeDisplay'); if (!displayEl) return;
-      displayEl.innerHTML = '';
-      const labels = { momo:'MTN MOMO', wave:'Wave', airtel:'Airtel Money', moov:'Moov Money' };
-      const text   = `${labels[provider]||'Mobile Money'} | ${phone} | ${total} ${curr}`;
-      try {
-        if (window.QRCode) {
-          new window.QRCode(displayEl, { text, width:128, height:128, colorDark:'#1e3c72', colorLight:'#ffffff' });
-          toast('QR Code généré (visible dans l\'app, non inclus dans le PDF)', 'success');
-        } else {
-          displayEl.innerHTML = `<code style="font-size:.78rem">${text}</code>`;
-        }
-      } catch (err) { console.error('QR:', err); toast('Erreur QR Code', 'error'); }
-    });
-  }
-
-  /* ============================================================
-     WHATSAPP — CORRECTION : utilise le numéro du CLIENT
+     WHATSAPP
      ============================================================ */
   function shareWhatsApp() {
-    // BUG FIX : on prend le numéro du client, pas le numéro admin
     const clientPhone = $('#clientTel')?.value?.trim();
     const clientName  = $('#clientName')?.value?.trim() || 'Client';
     const docType     = MODES[state.mode]?.label || 'Document';
@@ -959,7 +922,6 @@
       return;
     }
 
-    // Nettoyer le numéro : retirer espaces, tirets, parenthèses
     const phone = clientPhone.replace(/[\s\-().]/g, '');
 
     const msg = [
@@ -979,7 +941,7 @@
   }
 
   /* ============================================================
-     EXPORT PDF — QR CODE RETIRÉ, couleur dynamique
+     EXPORT PDF
      ============================================================ */
   function exportPDF() {
     const body = $('#itemsBody');
@@ -993,7 +955,6 @@
       const mode = MODES[state.mode] || MODES.devis;
       const status = STATUS_INFO[state.docStatus] || STATUS_INFO.draft;
 
-      // Couleur primaire CSS → RGB pour jsPDF
       const C = {
         navy:    [26,54,107], blue:[42,82,152], lightBg:[235,241,255],
         rowAlt:  [249,251,255], line:[210,220,240], textDk:[22,34,60],
@@ -1006,7 +967,7 @@
       const setFill  = rgb => doc.setFillColor(...rgb);
       const setDraw  = (rgb, lw=0.3) => { doc.setDrawColor(...rgb); doc.setLineWidth(lw); };
 
-      // ── EN-TÊTE ──
+      // EN-TÊTE
       const emitterLines = [
         $('#emitterAddress')?.value,
         $('#emitterExtra')?.value,
@@ -1019,8 +980,6 @@
       const hdrH           = Math.max(36, Math.max(leftBottom, rightBottom) + 6);
 
       setFill(C.navy); doc.rect(0, 0, pw, hdrH, 'F');
-
-      // Statut en haut à droite (dans le PDF)
       setFont('bold', 7); setColor([200,215,245]);
       doc.text(status.label.toUpperCase(), pw - mr, hdrH - 4, { align:'right' });
 
@@ -1054,7 +1013,7 @@
         doc.text(`Valide jusqu'au :  ${localDate($('#docValidity').value)}`, rightX, 37, { align:'right' });
       }
 
-      // ── CARTE CLIENT ──
+      // CARTE CLIENT
       let y = hdrH + 8;
       const clientLines = [
         $('#clientAddress')?.value,
@@ -1078,7 +1037,7 @@
       clientLines.forEach(line => { doc.text(line, cx, cy2); cy2 += 5; });
       y += cardH + 8;
 
-      // ── TABLEAU ──
+      // TABLEAU
       const tableRows = [];
       for (const tr of body.rows) {
         const q   = num(tr.querySelector('[data-field="qty"]')?.value);
@@ -1115,7 +1074,7 @@
 
       y = doc.lastAutoTable.finalY;
 
-      // ── TOTAUX ──
+      // TOTAUX
       const subtotal  = tableRows.reduce((s, _, i) => {
         const tr = body.rows[i];
         return s + num(tr.querySelector('[data-field="qty"]')?.value) * num(tr.querySelector('[data-field="price"]')?.value);
@@ -1155,7 +1114,7 @@
       doc.text(`${fmt(total)} ${curr}`, colAmt, ty2+1, { align:'right' });
       ty2 += ttcH; y = ty2 + 10;
 
-      // ── NOTES ──
+      // NOTES
       const notes = $('#docNotes')?.value?.trim();
       if (notes) {
         const notesY = doc.lastAutoTable.finalY + 6;
@@ -1173,7 +1132,7 @@
         y = Math.max(y, notesY + notesH + 8);
       }
 
-      // ── SIGNATURE ──
+      // SIGNATURE
       const signatoryName = $('#signatoryName')?.value?.trim() || '';
       const signatoryRole = $('#signatoryRole')?.value?.trim() || '';
       const sigExtraH = (signatoryName ? 5 : 0) + (signatoryRole ? 5 : 0);
@@ -1184,7 +1143,6 @@
       setFont('bold', 7); setColor(C.textMd);
       doc.text('CACHET ET SIGNATURE', ml+4, sigY+6);
 
-      // Image signature dans le PDF
       if (state.sigImgDataURL) {
         try {
           const imgFmt = state.sigImgDataURL.startsWith('data:image/png') ? 'PNG' : 'JPEG';
@@ -1206,7 +1164,7 @@
         doc.text(`Fait à ${place}, le ${new Date().toLocaleDateString('fr-FR')}`, ml+sigBoxW+8, sigY+sigBoxH/2+2);
       }
 
-      // ── FOOTER ──
+      // FOOTER
       const pageH  = doc.internal.pageSize.height;
       const footY  = pageH - 8;
       setFill(C.navy); doc.rect(0, footY-4, pw, 12, 'F');
@@ -1273,6 +1231,216 @@
   }
 
   /* ============================================================
+     MENU LATÉRAL DROIT
+     ============================================================ */
+  function bindSideMenu() {
+    const menu = $('#sideMenu');
+    const btn = $('#btnMenuToggle');
+    const close = $('#btnCloseMenu');
+    
+    btn?.addEventListener('click', () => menu?.classList.add('open'));
+    close?.addEventListener('click', () => menu?.classList.remove('open'));
+    
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.side-menu') && !e.target.closest('.btn-menu-toggle')) {
+        menu?.classList.remove('open');
+      }
+    });
+    
+    $('#btnMenuProfile')?.addEventListener('click', () => {
+      $('#profileOverlay')?.classList.add('open');
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuHistory')?.addEventListener('click', () => {
+      openHistory();
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuClients')?.addEventListener('click', () => {
+      openClients();
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuTemplate')?.addEventListener('click', () => {
+      openTemplateModal();
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuDashboard')?.addEventListener('click', () => {
+      $('#dashboardOverlay')?.classList.add('open');
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuExport')?.addEventListener('click', () => {
+      const submenu = $('#submenuExport');
+      if (submenu) submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    $('#btnMenuExportPdf')?.addEventListener('click', () => {
+      exportPDF();
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuExportExcel')?.addEventListener('click', () => {
+      exportExcel();
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuExportWa')?.addEventListener('click', () => {
+      shareWhatsApp();
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuSettings')?.addEventListener('click', () => {
+      $('#settingsOverlay')?.classList.add('open');
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuLogout')?.addEventListener('click', async () => {
+      if (confirm('Déconnexion ?')) {
+        await supabase.auth.signOut();
+        menu?.classList.remove('open');
+      }
+    });
+  }
+
+  /* ============================================================
+     PROFIL UTILISATEUR
+     ============================================================ */
+  function bindProfileEvents() {
+    $('#btnCloseProfile')?.addEventListener('click', () => {
+      $('#profileOverlay')?.classList.remove('open');
+    });
+    
+    $('#profileOverlay')?.addEventListener('click', e => {
+      if (e.target === $('#profileOverlay')) {
+        $('#profileOverlay')?.classList.remove('open');
+      }
+    });
+
+    $('#profileLogoZone')?.addEventListener('click', () => {
+      $('#profileLogoUpload')?.click();
+    });
+
+    $('#profileLogoUpload')?.addEventListener('change', e => {
+      const file = e.target.files?.[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        state._profileLogoDataURL = ev.target.result;
+        const pp = $('#profileLogoPreview'), pph = $('#profileLogoHint'), pb = $('#btnClearProfileLogo');
+        if (pp && pph) {
+          pp.src = ev.target.result;
+          pp.style.display = 'block';
+          pph.style.display = 'none';
+        }
+        if (pb) pb.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    $('#btnClearProfileLogo')?.addEventListener('click', () => {
+      state._profileLogoDataURL = null;
+      const pp = $('#profileLogoPreview'), pph = $('#profileLogoHint'), pb = $('#btnClearProfileLogo');
+      if (pp && pph) {
+        pp.src = '#';
+        pp.style.display = 'none';
+        pph.style.display = 'flex';
+      }
+      if (pb) pb.style.display = 'none';
+    });
+
+    $('#btnProfileSave')?.addEventListener('click', async () => {
+      if (!state.currentUser) { toast('Vous devez être connecté', 'error'); return; }
+      
+      const profileData = {
+        logo:    state._profileLogoDataURL || null,
+        name:    $('#profileName')?.value || '',
+        address: $('#profileAddress')?.value || '',
+        extra:   $('#profileExtra')?.value || '',
+        tel:     $('#profileTel')?.value || '',
+        email:   $('#profileEmail')?.value || '',
+        ifu:     $('#profileIfu')?.value || ''
+      };
+
+      try {
+        localStorage.setItem(`pg_profile.${state.currentUser.id}`, JSON.stringify(profileData));
+        
+        const { error } = await supabase.from('user_profiles').upsert({
+          user_id: state.currentUser.id,
+          data: profileData,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+
+        if (error) throw error;
+        toast('Profil sauvegardé ✓', 'success');
+      } catch (e) {
+        console.error('Profile save:', e);
+        toast('Erreur sauvegarde profil', 'error');
+      }
+    });
+
+    $('#btnProfileApply')?.addEventListener('click', () => {
+      const set = (id, v) => { const el = $(id); if (el) el.value = v||''; };
+      set('#emitterName',    $('#profileName')?.value);
+      set('#emitterAddress', $('#profileAddress')?.value);
+      set('#emitterExtra',   $('#profileExtra')?.value);
+      set('#emitterTel',     $('#profileTel')?.value);
+      set('#emitterEmail',   $('#profileEmail')?.value);
+      state.logoDataURL = state._profileLogoDataURL || state.logoDataURL;
+      
+      const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
+      if (state.logoDataURL && lp && lph) {
+        lp.src = state.logoDataURL;
+        lp.style.display = 'block';
+        lph.style.display = 'none';
+      }
+      
+      scheduleSave();
+      toast('Profil appliqué au document', 'success');
+    });
+  }
+
+  function applyProfileToUI(profileData) {
+    const set = (id, v) => { const el = $(id); if (el) el.value = v||''; };
+    set('#profileName',    profileData.name);
+    set('#profileAddress', profileData.address);
+    set('#profileExtra',   profileData.extra);
+    set('#profileTel',     profileData.tel);
+    set('#profileEmail',   profileData.email);
+    set('#profileIfu',     profileData.ifu);
+    
+    if (profileData.logo) {
+      state._profileLogoDataURL = profileData.logo;
+      const pp = $('#profileLogoPreview'), pph = $('#profileLogoHint'), pb = $('#btnClearProfileLogo');
+      if (pp && pph) {
+        pp.src = profileData.logo;
+        pp.style.display = 'block';
+        pph.style.display = 'none';
+      }
+      if (pb) pb.style.display = 'flex';
+    }
+  }
+
+  async function loadUserProfile(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('data')
+        .eq('user_id', userId)
+        .single();
+      
+      if (data) {
+        applyProfileToUI(data.data);
+        return;
+      }
+    } catch (e) {
+      const stored = localStorage.getItem(`pg_profile.${userId}`);
+      if (stored) applyProfileToUI(JSON.parse(stored));
+    }
+  }
+
+  /* ============================================================
      ÉVÉNEMENTS
      ============================================================ */
   function bindEvents() {
@@ -1297,15 +1465,11 @@
     $('#filterStatus')?.addEventListener('change',   renderHistory);
 
     // Clients
-    $('#btnClients')?.addEventListener('click',      openClients);
     $('#btnCloseClients')?.addEventListener('click', closeClients);
     $('#clientsOverlay')?.addEventListener('click',  e => { if (e.target === $('#clientsOverlay')) closeClients(); });
     $('#clientsSearch')?.addEventListener('input',   renderClientsPanel);
-    $('#btnSaveClient')?.addEventListener('click',   saveCurrentClient);
-    $('#btnPickClient')?.addEventListener('click',   openClients);
 
     // Templates
-    $('#btnTemplate')?.addEventListener('click',     openTemplateModal);
     $('#btnCloseTemplate')?.addEventListener('click',() => $('#templateModal')?.classList.remove('open'));
     $('#templateModal')?.addEventListener('click',   e => { if (e.target === $('#templateModal')) $('#templateModal').classList.remove('open'); });
 
@@ -1356,6 +1520,24 @@
       $(id)?.addEventListener('input', () => { recalculate(); scheduleSave(); })
     );
 
+    // Validation date
+    $('#docValidity')?.addEventListener('change', () => {
+      const validity = $('#docValidity')?.value;
+      const docDate = $('#docDate')?.value;
+      if (validity && docDate && validity < docDate) {
+        toast('La date d\'expiration doit être après la date du document', 'warning');
+        $('#docValidity').value = '';
+      }
+    });
+
+    // Validation email
+    $('#clientEmail')?.addEventListener('blur', () => {
+      const email = $('#clientEmail')?.value?.trim();
+      if (email && !isValidEmail(email)) {
+        toast('Email invalide', 'warning');
+      }
+    });
+
     // Autosave sur tous les champs texte
     ['#emitterName','#emitterAddress','#emitterExtra','#emitterTel','#emitterEmail',
      '#clientName','#clientAddress','#clientExtra','#clientSiret','#clientTel','#clientEmail',
@@ -1370,10 +1552,10 @@
       const reader = new FileReader();
       reader.onload = ev => {
         state.logoDataURL = ev.target.result;
+        saveDraft();  // ✅ Sauvegarde IMMÉDIATE
         const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
         if (lp) { lp.src = ev.target.result; lp.style.display = 'block'; }
         if (lph) lph.style.display = 'none';
-        scheduleSave();
       };
       reader.readAsDataURL(file);
     });
@@ -1388,17 +1570,17 @@
       const reader = new FileReader();
       reader.onload = ev => {
         state.sigImgDataURL = ev.target.result;
-        const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
+        saveDraft();  // ✅ Sauvegarde IMMÉDIATE
+        const sp = $('#sigImgPreview'), sph = $('#sigUploadHint'), scb = $('#btnClearSig');
         if (sp) { sp.src = ev.target.result; sp.style.display = 'block'; }
         if (sph) sph.style.display = 'none';
         if (scb) scb.style.display = 'flex';
-        scheduleSave();
       };
       reader.readAsDataURL(file);
     });
     $('#btnClearSig')?.addEventListener('click', () => {
       state.sigImgDataURL = null;
-      const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
+      const sp = $('#sigImgPreview'), sph = $('#sigUploadHint'), scb = $('#btnClearSig');
       if (sp) { sp.src = '#'; sp.style.display = 'none'; }
       if (sph) sph.style.display = 'flex';
       if (scb) scb.style.display = 'none';
@@ -1413,14 +1595,23 @@
       const b = $('#reminderBanner'); if (b) b.style.display = 'none';
     });
 
-    // Mobile Bottom Nav — CORRECTION BUG navigation mobile
+    // Mobile Bottom Nav
     $('#mbnNew')?.addEventListener('click',     () => {
       if (confirm('Nouveau document ?')) { resetToNew(true); toast('Nouveau document', 'success'); }
     });
     $('#mbnHistory')?.addEventListener('click', openHistory);
-    $('#mbnClients')?.addEventListener('click', openClients);
     $('#mbnPdf')?.addEventListener('click',     exportPDF);
-    $('#mbnWa')?.addEventListener('click',      shareWhatsApp);
+    $('#mbnSettings')?.addEventListener('click', () => $('#settingsOverlay')?.classList.add('open'));
+
+    // Paramétrages
+    $('#btnCloseSettings')?.addEventListener('click', () => $('#settingsOverlay')?.classList.remove('open'));
+    $('#settingsOverlay')?.addEventListener('click', e => { if (e.target === $('#settingsOverlay')) $('#settingsOverlay')?.classList.remove('open'); });
+    $('#btnSettingsSave')?.addEventListener('click', () => { toast('Paramètres sauvegardés', 'success'); });
+
+    // Dashboard
+    $('#btnCloseProfile')?.addEventListener('click', () => $('#profileOverlay')?.classList.remove('open'));
+    $('#btnCloseDashboard')?.addEventListener('click', () => $('#dashboardOverlay')?.classList.remove('open'));
+    $('#btnDashboard')?.addEventListener('click', () => $('#dashboardOverlay')?.classList.add('open'));
 
     // Raccourcis clavier
     document.addEventListener('keydown', e => {
@@ -1430,93 +1621,14 @@
       if (e.key === 'Escape') {
         closeHistory(); closeClients();
         $('#templateModal')?.classList.remove('open');
+        $('#profileOverlay')?.classList.remove('open');
+        $('#settingsOverlay')?.classList.remove('open');
+        $('#dashboardOverlay')?.classList.remove('open');
+        $('#sideMenu')?.classList.remove('open');
       }
     });
   }
 
-  /* ============================================================
-     SUPABASE SYNC
-     ============================================================ */
-  async function syncDocumentToSupabase(data, isNew) {
-    try {
-      const payload = {
-        user_id:     state.currentUser.id,
-        mode:        data.mode,
-        doc_number:  data.docNumber,
-        doc_date:    data.docDate || null,
-        doc_status:  data.docStatus || 'draft',
-        client_name: data.client?.name || '',
-        total_ttc:   computeTTC(data),
-        data
-      };
-      if (isNew) {
-        const { error } = await supabase.from('documents').insert(payload);
-        if (!error) { state.docCount++; updateCounterBadge(); }
-        else console.error('Insert error:', error.message);
-      } else {
-        await supabase.from('documents')
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq('user_id', state.currentUser.id)
-          .eq('doc_number', data.docNumber)
-          .eq('mode', data.mode);
-      }
-    } catch (e) { console.error('Sync:', e); }
-  }
-
-  /* CORRECTION BUG compteur : requête count correcte */
-  async function loadDocCountFromSupabase() {
-    if (!state.currentUser) return;
-    try {
-      const { count, error } = await supabase
-        .from('documents')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', state.currentUser.id);
-      if (error) { console.error('Count error:', error.message); return; }
-      state.docCount = count || 0;
-      updateCounterBadge();
-    } catch (e) { console.error('Count:', e); }
-  }
-
-  async function loadHistoryFromSupabase() {
-    if (!state.currentUser) return;
-    try {
-      const { data: rows, error } = await supabase
-        .from('documents')
-        .select('data, created_at, updated_at')
-        .eq('user_id', state.currentUser.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (error || !rows?.length) return;
-      const remoteHist = rows.map(r => ({ ...r.data, savedAt: r.updated_at || r.created_at }));
-      saveHistory(remoteHist);
-    } catch (e) { console.error('History load:', e); }
-  }
-
-  async function deleteDocFromSupabase(docNumber, mode) {
-    if (!state.currentUser) return;
-    try {
-      await supabase.from('documents').delete()
-        .eq('user_id', state.currentUser.id)
-        .eq('doc_number', docNumber)
-        .eq('mode', mode);
-      state.docCount = Math.max(0, state.docCount - 1);
-      updateCounterBadge();
-    } catch (e) { console.error('Delete:', e); }
-  }
-
-  function updateCounterBadge() {
-    const badge = $('#docCounterBadge'); if (!badge) return;
-    badge.textContent = `${state.docCount}/${DOC_LIMIT}`;
-    badge.classList.remove('warn','full');
-    if (state.docCount >= DOC_LIMIT) badge.classList.add('full');
-    else if (state.docCount >= DOC_LIMIT - 3) badge.classList.add('warn');
-  }
-
-  function showLimitModal() { const o = $('#limitOverlay'); if (o) o.style.display = 'flex'; }
-
-  /* ============================================================
-     AUTH
-     ============================================================ */
   function bindAuthEvents() {
     $('#tabLogin')?.addEventListener('click', () => {
       $('#tabLogin').classList.add('active'); $('#tabRegister').classList.remove('active');
@@ -1562,10 +1674,11 @@
       if (pass.length < 8) { showAuthError('registerError','Mot de passe min. 8 caractères.'); return; }
       if (pass !== confirm) { showAuthError('registerError','Les mots de passe ne correspondent pas.'); return; }
       setAuthLoading('btnRegister', true);
-      const { data: signData, error } = await supabase.auth.signUp({ email, password: pass });
+      const { error } = await supabase.auth.signUp({ email, password: pass });
       setAuthLoading('btnRegister', false);
       if (error) { showAuthError('registerError', error.message); return; }
-      if (!signData?.session) { toast('Compte créé ! Vérifiez votre email.', 'success', 5000); $('#tabLogin')?.click(); }
+      toast('Compte créé ! Vérifiez votre email.', 'success', 5000); 
+      $('#tabLogin')?.click();
     });
 
     $('#btnLogout')?.addEventListener('click', async () => {
@@ -1574,6 +1687,10 @@
     });
 
     $('#btnLimitClose')?.addEventListener('click', () => { $('#limitOverlay').style.display = 'none'; });
+
+    $('#btnProfilePill')?.addEventListener('click', () => {
+      $('#profileOverlay')?.classList.add('open');
+    });
   }
 
   function setAuthLoading(btnId, loading) {
@@ -1594,21 +1711,135 @@
     const el = document.getElementById(elId); if (el) { el.textContent = ''; el.classList.remove('visible'); }
   }
 
+  /* ============================================================
+     SUPABASE SYNC — ✅ Historique chargé depuis Supabase
+     ============================================================ */
+  async function syncDocumentToSupabase(data, isNew) {
+    try {
+      const payload = {
+        user_id:     state.currentUser.id,
+        mode:        data.mode,
+        doc_number:  data.docNumber,
+        doc_date:    data.docDate || null,
+        doc_status:  data.docStatus || 'draft',
+        client_name: data.client?.name || '',
+        total_ttc:   computeTTC(data),
+        data
+      };
+      if (isNew) {
+        const { error } = await supabase.from('documents').insert(payload);
+        return { success: !error };
+      } else {
+        const { error } = await supabase.from('documents')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('user_id', state.currentUser.id)
+          .eq('doc_number', data.docNumber)
+          .eq('mode', data.mode);
+        return { success: !error };
+      }
+    } catch (e) {
+      console.error('Sync:', e);
+      return { success: false };
+    }
+  }
+
+  async function loadDocCountFromSupabase() {
+    if (!state.currentUser) return;
+    try {
+      const { count, error } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', state.currentUser.id);
+      if (error) { console.error('Count error:', error.message); return; }
+      state.docCount = count || 0;
+      updateCounterBadge();
+    } catch (e) { console.error('Count:', e); }
+  }
+
+  async function loadHistoryFromSupabase() {
+    if (!state.currentUser) return;
+    try {
+      const { data: rows, error } = await supabase
+        .from('documents')
+        .select('data, created_at, updated_at')
+        .eq('user_id', state.currentUser.id)
+        .order('updated_at', { ascending: false })
+        .limit(100);
+      if (error) { console.warn('Historique Supabase indisponible'); return; }
+      if (rows?.length) {
+        const remoteHist = rows.map(r => ({
+          ...r.data,
+          savedAt: r.updated_at || r.created_at
+        }));
+        const localHist = getHistory();
+        const merged = [...remoteHist];
+        localHist.forEach(local => {
+          if (!merged.find(r => r.docNumber === local.docNumber && r.mode === local.mode)) {
+            merged.push(local);
+          }
+        });
+        merged.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+        saveHistory(merged);
+        toast(`${merged.length} documents synchronisés`, 'info', 1500);
+      }
+    } catch (e) { console.error('History sync:', e); }
+  }
+
+  async function deleteDocFromSupabase(docNumber, mode) {
+    if (!state.currentUser) return;
+    try {
+      await supabase.from('documents').delete()
+        .eq('user_id', state.currentUser.id)
+        .eq('doc_number', docNumber)
+        .eq('mode', mode);
+      state.docCount = Math.max(0, state.docCount - 1);
+      updateCounterBadge();
+    } catch (e) { console.error('Delete:', e); }
+  }
+
+  function updateCounterBadge() {
+    const badge = $('#docCounterBadge'); if (!badge) return;
+    badge.textContent = `${state.docCount}/${DOC_LIMIT}`;
+    badge.classList.remove('warn','full');
+    if (state.docCount >= DOC_LIMIT) badge.classList.add('full');
+    else if (state.docCount >= DOC_LIMIT - 3) badge.classList.add('warn');
+  }
+
+  function showLimitModal() { const o = $('#limitOverlay'); if (o) o.style.display = 'flex'; }
+
   function onAuthStateChange(session) {
     if (session?.user) {
       state.currentUser = session.user;
       const overlay = $('#authOverlay'); if (overlay) overlay.style.display = 'none';
-      const pill    = $('#userPill');    if (pill) pill.style.display = 'flex';
-      const emailEl = $('#userEmail');  if (emailEl) emailEl.textContent = session.user.email;
+      const pill = $('#userPill'); if (pill) pill.style.display = 'flex';
+      
+      // ✅ Afficher le nom au lieu de l'email
+      const nameEl = $('#userName');
+      if (nameEl) {
+        const name = session.user.user_metadata?.full_name 
+          || session.user.email.split('@')[0];
+        nameEl.textContent = name;
+      }
 
+      // Charger le profil
+      loadUserProfile(session.user.id);
       loadDocCountFromSupabase();
-      loadHistoryFromSupabase();
-      loadDraft(); recalculate(); ensureOneRow(); populateClientDatalist(); checkExpiringDocs();
-      snapshotState();
+      
+      // ✅ CRITIQUE: Charger l'historique AVANT le draft
+      loadHistoryFromSupabase().then(() => {
+        loadDraft();
+        recalculate();
+        ensureOneRow();
+        populateClientDatalist();
+        checkExpiringDocs();
+        snapshotState();
+      });
+
     } else {
       state.currentUser = null; state.docCount = 0;
       const overlay = $('#authOverlay'); if (overlay) overlay.style.display = 'flex';
-      const pill    = $('#userPill');    if (pill) pill.style.display = 'none';
+      const pill = $('#userPill'); if (pill) pill.style.display = 'none';
+      loadDraft();
     }
   }
 
@@ -1618,18 +1849,16 @@
   async function init() {
     const authOverlay = $('#authOverlay'); if (authOverlay) authOverlay.style.display = 'flex';
 
-    // Placeholder numéro
     const dn = $('#docNumber');
     if (dn && !dn.value) dn.placeholder = peekNextNumber('devis');
 
-    // Date du jour
     const dd = $('#docDate'); if (dd && !dd.value) dd.value = todayISO();
     const cd = $('#currentDate'); if (cd) cd.textContent = new Date().toLocaleDateString('fr-FR');
 
     bindEvents();
     bindAuthEvents();
-    bindQrEvents();
-    bindClientAutocomplete();
+    bindProfileEvents();
+    bindSideMenu();
 
     try {
       supabase.auth.onAuthStateChange((_event, session) => onAuthStateChange(session));
@@ -1639,6 +1868,7 @@
     } catch (err) {
       console.error('Auth init:', err);
       toast('Connexion au serveur impossible. Vérifiez votre réseau.', 'error', 5000);
+      loadDraft();
     }
   }
 
