@@ -47,8 +47,9 @@
       <!-- Pill utilisateur connecté -->
       <div class="user-pill" id="userPill" style="display:none">
         <button type="button" class="btn-profile-pill" id="btnProfilePill" title="Mon profil">
-          <i class="fas fa-user-circle"></i>
-          <span id="userEmail" class="user-email-text"></span>
+          <img id="userAvatar" src="#" alt="Avatar" class="user-avatar" style="display:none">
+          <div class="user-avatar-fallback" id="userAvatarFallback">?</div>
+          <span id="userName" class="user-name-text"></span>
         </button>
         <span class="doc-counter-badge" id="docCounterBadge">0/10</span>
         <button type="button" class="btn-logout" id="btnLogout" title="Se déconnecter">
@@ -368,6 +369,34 @@
     </div>
   </div>
 
+  <!-- ===== PANNEAU CLIENTS ===== -->
+  <div class="history-overlay" id="clientsOverlay" role="dialog" aria-label="Carnet clients">
+    <div class="history-panel">
+      <div class="history-panel-header">
+        <span><i class="fas fa-address-book"></i> Carnet clients</span>
+        <button type="button" id="btnCloseClients"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="history-tools">
+        <div class="search-wrap">
+          <i class="fas fa-search search-icon"></i>
+          <input type="search" id="clientsSearch" placeholder="Rechercher client…">
+        </div>
+      </div>
+      <div class="history-list" id="clientsList"></div>
+    </div>
+  </div>
+
+  <!-- ===== PANNEAU TEMPLATES ===== -->
+  <div class="history-overlay" id="templateModal" role="dialog" aria-label="Templates">
+    <div class="history-panel">
+      <div class="history-panel-header">
+        <span><i class="fas fa-file-import"></i> Templates</span>
+        <button type="button" id="btnCloseTemplate"><i class="fas fa-times"></i></button>
+      </div>
+      <div style="padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;overflow-y:auto;flex:1" id="templateGrid"></div>
+    </div>
+  </div>
+
   <!-- ===== PANNEAU PROFIL ===== -->
   <div class="history-overlay" id="profileOverlay" role="dialog" aria-label="Profil utilisateur">
     <div class="history-panel">
@@ -506,6 +535,56 @@
     </div>
   </div>
 
+  <!-- ===== MENU LATÉRAL DROIT ===== -->
+  <button type="button" class="btn-menu-toggle" id="btnMenuToggle" title="Menu">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-header">
+      <span>Menu</span>
+      <button type="button" id="btnCloseMenu"><i class="fas fa-times"></i></button>
+    </div>
+    <nav class="side-menu-nav">
+      <button type="button" class="side-menu-item" id="btnMenuProfile">
+        <i class="fas fa-user-circle"></i> Mon profil
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuHistory">
+        <i class="fas fa-history"></i> Historique
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuClients">
+        <i class="fas fa-address-book"></i> Carnet clients
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuTemplate">
+        <i class="fas fa-file-import"></i> Templates
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuDashboard">
+        <i class="fas fa-chart-bar"></i> Dashboard
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuExport">
+        <i class="fas fa-download"></i> Exporter
+      </button>
+      <div class="submenu" id="submenuExport" style="display:none">
+        <button class="submenu-item" id="btnMenuExportPdf">
+          <i class="fas fa-file-pdf"></i> PDF
+        </button>
+        <button class="submenu-item" id="btnMenuExportExcel">
+          <i class="fas fa-file-excel"></i> Excel
+        </button>
+        <button class="submenu-item" id="btnMenuExportWa">
+          <i class="fab fa-whatsapp"></i> WhatsApp
+        </button>
+      </div>
+      <hr style="margin: 0.8rem 0; border: none; border-top: 1px solid var(--border)">
+      <button type="button" class="side-menu-item" id="btnMenuSettings">
+        <i class="fas fa-cog"></i> Paramètres
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuLogout">
+        <i class="fas fa-sign-out-alt"></i> Déconnexion
+      </button>
+    </nav>
+  </aside>
+
   <!-- ===== TOAST ===== -->
   <div class="toast-notification" id="toast" role="status" aria-live="polite"></div>
 
@@ -589,7 +668,6 @@
   <nav class="mobile-nav" id="mobileNav">
     <button type="button" class="mbn-btn" id="mbnNew"><i class="fas fa-plus-circle"></i><span>Nouveau</span></button>
     <button type="button" class="mbn-btn" id="mbnHistory"><i class="fas fa-history"></i><span>Historique</span></button>
-    <button type="button" class="mbn-btn" id="mbnDashboard"><i class="fas fa-chart-bar"></i><span>Dashboard</span></button>
     <button type="button" class="mbn-btn" id="mbnPdf"><i class="fas fa-file-pdf"></i><span>PDF</span></button>
     <button type="button" class="mbn-btn" id="mbnSettings"><i class="fas fa-cog"></i><span>Réglages</span></button>
   </nav>
