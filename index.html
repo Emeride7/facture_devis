@@ -17,7 +17,7 @@
 </head>
 <body>
 
-  <!-- ===== BARRE D'OUTILS ===== -->
+  <!-- ===== BARRE D'OUTILS ALLÉGÉE ===== -->
   <div class="toolbar" id="toolbar">
     <div class="toolbar-left">
       <span class="brand">
@@ -26,25 +26,22 @@
       </span>
     </div>
 
-    <div class="toolbar-center">
-      <div class="mode-switcher">
-        <button type="button" class="mode-btn active" id="btnDevis" title="Devis">
-          <i class="fas fa-file"></i>
-          <span class="mode-label">DEVIS</span>
-        </button>
-        <button type="button" class="mode-btn" id="btnFacture" title="Facture">
-          <i class="fas fa-file-invoice-dollar"></i>
-          <span class="mode-label">FACTURE</span>
-        </button>
-        <button type="button" class="mode-btn" id="btnProforma" title="Pro Forma">
-          <i class="fas fa-file-alt"></i>
-          <span class="mode-label">PRO FORMA</span>
-        </button>
-      </div>
+    <div class="mode-switcher">
+      <button type="button" class="mode-btn active" id="btnDevis" title="Devis">
+        <i class="fas fa-file"></i>
+        <span class="mode-label">DEVIS</span>
+      </button>
+      <button type="button" class="mode-btn" id="btnFacture" title="Facture">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <span class="mode-label">FACTURE</span>
+      </button>
+      <button type="button" class="mode-btn" id="btnProforma" title="Pro Forma">
+        <i class="fas fa-file-alt"></i>
+        <span class="mode-label">PRO FORMA</span>
+      </button>
     </div>
 
     <div class="toolbar-right">
-      <!-- Pill utilisateur connecté -->
       <div class="user-pill" id="userPill" style="display:none">
         <button type="button" class="btn-profile-pill" id="btnProfilePill" title="Mon profil">
           <img id="userAvatar" src="#" alt="Avatar" class="user-avatar" style="display:none">
@@ -57,51 +54,18 @@
         </button>
       </div>
 
-      <button type="button" class="btn-action btn-dashboard" id="btnDashboard" title="Dashboard" style="display:none">
-        <i class="fas fa-chart-bar"></i>
-        <span class="btn-label">Dashboard</span>
-      </button>
-      <button type="button" class="btn-action btn-history" id="btnHistory" title="Historique">
-        <i class="fas fa-history"></i>
-        <span class="btn-label">Historique</span>
-      </button>
-      <button type="button" class="btn-action btn-save" id="btnArchive" title="Sauvegarder (Ctrl+S)">
-        <i class="fas fa-save"></i>
-        <span class="btn-label">Sauvegarder</span>
-      </button>
-      <button type="button" class="btn-action btn-dup" id="btnDuplicate" title="Dupliquer ce document">
-        <i class="fas fa-copy"></i>
-        <span class="btn-label">Dupliquer</span>
-      </button>
-      <button type="button" class="btn-action btn-new" id="btnNew" title="Nouveau document">
-        <i class="fas fa-plus-circle"></i>
-        <span class="btn-label">Nouveau</span>
-      </button>
-      <button type="button" class="btn-action btn-wa" id="btnWhatsapp" title="Partager via WhatsApp (numéro client)">
-        <i class="fab fa-whatsapp"></i>
-        <span class="btn-label">WhatsApp</span>
-      </button>
-      <button type="button" class="btn-action btn-pdf" id="btnPdf" title="Exporter en PDF">
-        <i class="fas fa-file-pdf"></i>
-        <span class="btn-label">PDF</span>
-      </button>
-      <button type="button" class="btn-action btn-excel" id="btnExcel" title="Exporter en Excel">
-        <i class="fas fa-file-excel"></i>
-        <span class="btn-label">Excel</span>
-      </button>
-      <button type="button" class="btn-action btn-settings" id="btnSettings" title="Paramètres">
-        <i class="fas fa-cog"></i>
-        <span class="btn-label">Paramètres</span>
+      <!-- Bouton menu unique -->
+      <button type="button" class="btn-main-menu" id="btnMainMenu">
+        <i class="fas fa-bars"></i>
+        <span>Menu</span>
       </button>
     </div>
   </div>
 
-  <!-- Indicateur de sauvegarde automatique -->
   <div class="autosave-bar" id="autosaveBar">
     <i class="fas fa-check-circle"></i> Brouillon sauvegardé
   </div>
 
-  <!-- Bannière rappels expiration -->
   <div class="reminder-banner" id="reminderBanner" style="display:none">
     <i class="fas fa-exclamation-triangle"></i>
     <span id="reminderText"></span>
@@ -111,7 +75,6 @@
   <main>
     <div class="document-card">
 
-      <!-- Barre statut + undo/redo -->
       <div class="doc-status-bar">
         <div class="dsb-left">
           <span class="doc-type-badge" id="docTypeBadge">DEVIS</span>
@@ -135,7 +98,6 @@
         </div>
       </div>
 
-      <!-- ===== EN-TÊTE DU DOCUMENT ===== -->
       <div class="document-header" id="documentHeader">
         <div class="header-left">
           <div class="logo-wrapper" title="Cliquer pour changer le logo">
@@ -186,34 +148,31 @@
         </div>
       </div>
 
-      <!-- ===== CORPS DU DOCUMENT ===== -->
       <div class="document-body">
 
-        <!-- Section Client -->
         <div class="section-title"><i class="fas fa-user-tie"></i> Client</div>
         <div class="client-section">
           <div class="client-grid">
-            <input type="text" class="form-input" id="clientName"    placeholder="Nom / Raison sociale" list="clientDatalist" autocomplete="off">
+            <input type="text" class="form-input" id="clientName" placeholder="Nom / Raison sociale" list="clientDatalist" autocomplete="off">
             <input type="text" class="form-input" id="clientAddress" placeholder="Adresse">
-            <input type="text" class="form-input" id="clientExtra"   placeholder="Complément d'adresse">
-            <input type="text" class="form-input" id="clientSiret"   placeholder="SIRET / IFU (optionnel)">
-            <input type="tel"  class="form-input" id="clientTel"     placeholder="Téléphone client">
-            <input type="email" class="form-input" id="clientEmail"  placeholder="Email client">
+            <input type="text" class="form-input" id="clientExtra" placeholder="Complément d'adresse">
+            <input type="text" class="form-input" id="clientSiret" placeholder="SIRET / IFU (optionnel)">
+            <input type="tel" class="form-input" id="clientTel" placeholder="Téléphone client">
+            <input type="email" class="form-input" id="clientEmail" placeholder="Email client">
           </div>
         </div>
 
-        <!-- Section Prestations -->
         <div class="section-title"><i class="fas fa-list"></i> Prestations</div>
         <div class="table-container">
           <table class="items-table" id="itemsTable">
             <thead>
               <tr>
-                <th class="col-drag"       aria-label="Réorganiser"></th>
+                <th class="col-drag"></th>
                 <th class="col-designation">Désignation</th>
                 <th class="col-qty">Qté</th>
                 <th class="col-price">Prix unitaire HT</th>
                 <th class="col-total">Total HT</th>
-                <th class="col-actions"    aria-label="Actions"></th>
+                <th class="col-actions"></th>
               </tr>
             </thead>
             <tbody id="itemsBody"></tbody>
@@ -223,14 +182,12 @@
           <i class="fas fa-plus-circle"></i> Ajouter une ligne
         </button>
 
-        <!-- Notes -->
         <div class="section-title section-title-notes">
           <i class="fas fa-sticky-note"></i> Notes &amp; Conditions
         </div>
         <textarea class="notes-textarea" id="docNotes" rows="4"
           placeholder="Conditions de paiement, délais de livraison, mentions légales…"></textarea>
 
-        <!-- Totaux -->
         <div class="document-footer">
           <div class="totals-section">
             <div class="totals-left">
@@ -292,9 +249,8 @@
           </div>
         </div>
 
-      </div><!-- /.document-body -->
+      </div>
 
-      <!-- Signature -->
       <div class="signature-section">
         <div class="signature-left">
           <div class="signature-label">Cachet et signature</div>
@@ -311,7 +267,6 @@
               <option value="Gérant">Gérant</option>
             </select>
           </div>
-          <!-- Zone image signature -->
           <div class="sig-img-wrap">
             <div class="sig-upload-zone" id="sigUploadZone" title="Ajouter une image de signature">
               <img id="sigImgPreview" src="#" alt="Signature" style="display:none">
@@ -332,10 +287,83 @@
         </div>
       </div>
 
-    </div><!-- /.document-card -->
+    </div>
   </main>
 
-  <!-- ===== PANNEAU HISTORIQUE ===== -->
+  <!-- ===== MENU LATÉRAL UNIQUE ===== -->
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-header">
+      <span><i class="fas fa-file-invoice"></i> ProGestion</span>
+      <button type="button" id="btnCloseMenu"><i class="fas fa-times"></i></button>
+    </div>
+    <nav class="side-menu-nav">
+      <button type="button" class="side-menu-item" id="btnMenuNew">
+        <i class="fas fa-plus-circle"></i> Nouveau document
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuSave">
+        <i class="fas fa-save"></i> Sauvegarder
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuDuplicate">
+        <i class="fas fa-copy"></i> Dupliquer
+      </button>
+      
+      <div class="side-menu-divider"></div>
+      
+      <button type="button" class="side-menu-item" id="btnMenuHistory">
+        <i class="fas fa-history"></i> Historique
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuClients">
+        <i class="fas fa-address-book"></i> Carnet clients
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuTemplate">
+        <i class="fas fa-file-import"></i> Templates
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuDashboard">
+        <i class="fas fa-chart-bar"></i> Dashboard
+      </button>
+      
+      <div class="side-menu-divider"></div>
+      
+      <!-- Export avec sous-menu -->
+      <button type="button" class="side-menu-item" id="btnMenuExport">
+        <i class="fas fa-download"></i> Exporter
+        <i class="fas fa-chevron-right" style="margin-left: auto; font-size: 0.7rem;"></i>
+      </button>
+      <div class="submenu-export" id="submenuExport" style="display: none;">
+        <button class="submenu-item" id="btnMenuExportPdf">
+          <i class="fas fa-file-pdf"></i> PDF
+        </button>
+        <button class="submenu-item" id="btnMenuExportExcel">
+          <i class="fas fa-file-excel"></i> Excel
+        </button>
+        <button class="submenu-item" id="btnMenuExportWa">
+          <i class="fab fa-whatsapp"></i> WhatsApp
+        </button>
+      </div>
+      
+      <div class="side-menu-divider"></div>
+      
+      <button type="button" class="side-menu-item" id="btnMenuProfile">
+        <i class="fas fa-user-circle"></i> Mon profil
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuSettings">
+        <i class="fas fa-cog"></i> Paramètres
+      </button>
+      
+      <div class="side-menu-divider"></div>
+      
+      <button type="button" class="side-menu-item" id="btnMenuLogout">
+        <i class="fas fa-sign-out-alt"></i> Déconnexion
+      </button>
+    </nav>
+  </aside>
+
+  <!-- Bouton flottant pour mobile -->
+  <button type="button" class="btn-menu-toggle" id="btnMenuToggle" title="Menu">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- ===== PANNEAUX ===== -->
   <div class="history-overlay" id="historyOverlay" role="dialog" aria-label="Historique des documents">
     <div class="history-panel">
       <div class="history-panel-header">
@@ -369,7 +397,6 @@
     </div>
   </div>
 
-  <!-- ===== PANNEAU CLIENTS ===== -->
   <div class="history-overlay" id="clientsOverlay" role="dialog" aria-label="Carnet clients">
     <div class="history-panel">
       <div class="history-panel-header">
@@ -386,7 +413,6 @@
     </div>
   </div>
 
-  <!-- ===== PANNEAU TEMPLATES ===== -->
   <div class="history-overlay" id="templateModal" role="dialog" aria-label="Templates">
     <div class="history-panel">
       <div class="history-panel-header">
@@ -397,7 +423,6 @@
     </div>
   </div>
 
-  <!-- ===== PANNEAU PROFIL ===== -->
   <div class="history-overlay" id="profileOverlay" role="dialog" aria-label="Profil utilisateur">
     <div class="history-panel">
       <div class="history-panel-header">
@@ -464,7 +489,6 @@
     </div>
   </div>
 
-  <!-- ===== PANNEAU PARAMÈTRES ===== -->
   <div class="history-overlay" id="settingsOverlay" role="dialog" aria-label="Paramètres">
     <div class="history-panel">
       <div class="history-panel-header">
@@ -522,73 +546,18 @@
     </div>
   </div>
 
-  <!-- ===== PANNEAU DASHBOARD ===== -->
   <div class="history-overlay" id="dashboardOverlay" role="dialog" aria-label="Dashboard">
     <div class="history-panel history-panel-wide">
       <div class="history-panel-header">
         <span><i class="fas fa-chart-bar"></i> Dashboard</span>
         <button type="button" id="btnCloseDashboard"><i class="fas fa-times"></i></button>
       </div>
-      <div class="dashboard-body" id="dashboardBody">
-        <!-- Rempli par JS -->
-      </div>
+      <div class="dashboard-body" id="dashboardBody"></div>
     </div>
   </div>
 
-  <!-- ===== MENU LATÉRAL DROIT ===== -->
-  <button type="button" class="btn-menu-toggle" id="btnMenuToggle" title="Menu">
-    <i class="fas fa-bars"></i>
-  </button>
-
-  <aside class="side-menu" id="sideMenu">
-    <div class="side-menu-header">
-      <span>Menu</span>
-      <button type="button" id="btnCloseMenu"><i class="fas fa-times"></i></button>
-    </div>
-    <nav class="side-menu-nav">
-      <button type="button" class="side-menu-item" id="btnMenuProfile">
-        <i class="fas fa-user-circle"></i> Mon profil
-      </button>
-      <button type="button" class="side-menu-item" id="btnMenuHistory">
-        <i class="fas fa-history"></i> Historique
-      </button>
-      <button type="button" class="side-menu-item" id="btnMenuClients">
-        <i class="fas fa-address-book"></i> Carnet clients
-      </button>
-      <button type="button" class="side-menu-item" id="btnMenuTemplate">
-        <i class="fas fa-file-import"></i> Templates
-      </button>
-      <button type="button" class="side-menu-item" id="btnMenuDashboard">
-        <i class="fas fa-chart-bar"></i> Dashboard
-      </button>
-      <button type="button" class="side-menu-item" id="btnMenuExport">
-        <i class="fas fa-download"></i> Exporter
-      </button>
-      <div class="submenu" id="submenuExport" style="display:none">
-        <button class="submenu-item" id="btnMenuExportPdf">
-          <i class="fas fa-file-pdf"></i> PDF
-        </button>
-        <button class="submenu-item" id="btnMenuExportExcel">
-          <i class="fas fa-file-excel"></i> Excel
-        </button>
-        <button class="submenu-item" id="btnMenuExportWa">
-          <i class="fab fa-whatsapp"></i> WhatsApp
-        </button>
-      </div>
-      <hr style="margin: 0.8rem 0; border: none; border-top: 1px solid var(--border)">
-      <button type="button" class="side-menu-item" id="btnMenuSettings">
-        <i class="fas fa-cog"></i> Paramètres
-      </button>
-      <button type="button" class="side-menu-item" id="btnMenuLogout">
-        <i class="fas fa-sign-out-alt"></i> Déconnexion
-      </button>
-    </nav>
-  </aside>
-
-  <!-- ===== TOAST ===== -->
   <div class="toast-notification" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- Datalists -->
   <datalist id="clientDatalist"></datalist>
   <datalist id="itemDatalist"></datalist>
 
@@ -651,7 +620,6 @@
     </div>
   </div>
 
-  <!-- ===== LIMITE ===== -->
   <div class="limit-overlay" id="limitOverlay" style="display:none">
     <div class="limit-card">
       <div class="limit-icon"><i class="fas fa-lock"></i></div>
@@ -663,14 +631,6 @@
       <button type="button" class="btn-limit-close" id="btnLimitClose">Fermer</button>
     </div>
   </div>
-
-  <!-- Mobile Bottom Nav -->
-  <nav class="mobile-nav" id="mobileNav">
-    <button type="button" class="mbn-btn" id="mbnNew"><i class="fas fa-plus-circle"></i><span>Nouveau</span></button>
-    <button type="button" class="mbn-btn" id="mbnHistory"><i class="fas fa-history"></i><span>Historique</span></button>
-    <button type="button" class="mbn-btn" id="mbnPdf"><i class="fas fa-file-pdf"></i><span>PDF</span></button>
-    <button type="button" class="mbn-btn" id="mbnSettings"><i class="fas fa-cog"></i><span>Réglages</span></button>
-  </nav>
 
   <script src="script.js"></script>
 </body>

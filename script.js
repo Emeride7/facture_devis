@@ -1,7 +1,5 @@
 /**
- * ProGestion v3 — CORRIGÉ COMPLET
- * Fixes critiques : images persévérées, compteur documents, historique multi-device
- * Menu latéral droit, profil utilisateur avec photo, préremplissage
+ * ProGestion v3 — CORRIGÉ AVEC MENU LATÉRAL UNIQUE
  */
 (function () {
   'use strict';
@@ -164,7 +162,7 @@
   }
 
   /* ============================================================
-     CARNET CLIENTS (localStorage)
+     CARNET CLIENTS
      ============================================================ */
   function getClients() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.clients)) || []; }
@@ -314,7 +312,6 @@
     const vc = $('#validityContainer');
     if (vc) vc.style.display = hasValidity ? '' : 'none';
 
-    // ✅ CORRECTION: Changer le numéro si mode différent
     const dn = $('#docNumber');
     if (dn && !dn.value) {
       dn.value = consumeNextNumber(mode);
@@ -497,7 +494,7 @@
   }
 
   /* ============================================================
-     COLLECT / APPLY DATA — ✅ CORRECTION: Images persévérées
+     COLLECT / APPLY DATA
      ============================================================ */
   function collectData() {
     const rows = [];
@@ -544,8 +541,8 @@
         tel:     g('#clientTel'),
         email:   g('#clientEmail')
       },
-      logo:    state.logoDataURL   || null,  // ✅ Sauvegarde l'image
-      sigImg:  state.sigImgDataURL || null,  // ✅ Sauvegarde la signature
+      logo:    state.logoDataURL   || null,
+      sigImg:  state.sigImgDataURL || null,
       items:   rows,
       updatedAt: new Date().toISOString()
     };
@@ -554,8 +551,8 @@
   function applyData(data) {
     if (!data) return;
     state.draftId       = data.id       || uid();
-    state.logoDataURL   = data.logo     || null;      // ✅ Restaure logo
-    state.sigImgDataURL = data.sigImg   || null;      // ✅ Restaure signature
+    state.logoDataURL   = data.logo     || null;
+    state.sigImgDataURL = data.sigImg   || null;
 
     const set = (id, val) => { const el = $(id); if (el) el.value = val||''; };
     set('#emitterName',    data.emitter?.name);
@@ -583,7 +580,6 @@
     const de = $('#discountEnabled'); if (de) de.checked  = data.discountEnabled || false;
     const dr = $('#discountRate');    if (dr) dr.value    = data.discountRate ?? 0;
 
-    // ✅ Logo — afficher IMMÉDIATEMENT
     const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
     if (data.logo && lp && lph) { 
       lp.src = data.logo; 
@@ -594,7 +590,6 @@
       lph.style.display = 'flex'; 
     }
 
-    // ✅ Signature image — afficher IMMÉDIATEMENT
     const sp = $('#sigImgPreview'), sph = $('#sigUploadHint'), scb = $('#btnClearSig');
     if (data.sigImg && sp && sph) {
       sp.src = data.sigImg; 
@@ -607,7 +602,6 @@
       if (scb) scb.style.display = 'none';
     }
 
-    // Items
     const body = $('#itemsBody');
     if (body) {
       body.innerHTML = '';
@@ -623,7 +617,7 @@
   }
 
   /* ============================================================
-     SAUVEGARDE BROUILLON — ✅ URGENT (appel avant Auth)
+     SAUVEGARDE BROUILLON
      ============================================================ */
   function saveDraft() {
     localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(collectData()));
@@ -668,9 +662,9 @@
      '#docNotes','#placeOfIssue','#signatoryName']
       .forEach(id => { const el = $(id); if (el) el.value = ''; });
     const sr = $('#signatoryRole'); if (sr) sr.value = '';
-    const dd = $('#docDate');     if (dd) dd.value = todayISO();
+    const dd = $('#docDate');     if (dd && !dd.value) dd.value = todayISO();
     const dv = $('#docValidity'); if (dv) dv.value = '';
-    const cu = $('#currency');    if (cu) cu.value = 'CFA';
+    const cu = $('#currency');    if (cu && !cu.value) cu.value = 'CFA';
     const ve = $('#vatEnabled');  if (ve) ve.checked = true;
     const vr = $('#vatRate');     if (vr) vr.value = 18;
     const de = $('#discountEnabled'); if (de) de.checked = false;
@@ -681,7 +675,7 @@
     if (sph) sph.style.display = 'flex';
     if (scb) scb.style.display = 'none';
 
-    const dn = $('#docNumber'); if (dn) dn.value = consumeNextNumber('devis');
+    const dn = $('#docNumber'); if (dn && !dn.value) dn.value = consumeNextNumber('devis');
     const body = $('#itemsBody'); if (body) { body.innerHTML = ''; addRow(); }
 
     setMode('devis');
@@ -732,7 +726,6 @@
     const dupIdx = hist.findIndex(it => it.docNumber === data.docNumber && it.mode === data.mode);
     const isNew  = dupIdx < 0;
 
-    // ✅ CORRECTION: Vérifier AVANT et incrémenter immédiatement
     if (isNew && state.currentUser && state.docCount >= DOC_LIMIT) {
       showLimitModal();
       return;
@@ -901,7 +894,7 @@
     }
     const n = $('#docNotes'); if (n && tpl.notes) n.value = tpl.notes;
     recalculate(); scheduleSave();
-    $('#templateModal').?.classList.remove('open');
+    $('#templateModal')?.classList.remove('open');
     toast(`Template "${tpl.name}" appliqué`, 'success');
   }
 
@@ -967,7 +960,6 @@
       const setFill  = rgb => doc.setFillColor(...rgb);
       const setDraw  = (rgb, lw=0.3) => { doc.setDrawColor(...rgb); doc.setLineWidth(lw); };
 
-      // EN-TÊTE
       const emitterLines = [
         $('#emitterAddress')?.value,
         $('#emitterExtra')?.value,
@@ -1013,7 +1005,6 @@
         doc.text(`Valide jusqu'au :  ${localDate($('#docValidity').value)}`, rightX, 37, { align:'right' });
       }
 
-      // CARTE CLIENT
       let y = hdrH + 8;
       const clientLines = [
         $('#clientAddress')?.value,
@@ -1037,7 +1028,6 @@
       clientLines.forEach(line => { doc.text(line, cx, cy2); cy2 += 5; });
       y += cardH + 8;
 
-      // TABLEAU
       const tableRows = [];
       for (const tr of body.rows) {
         const q   = num(tr.querySelector('[data-field="qty"]')?.value);
@@ -1074,7 +1064,6 @@
 
       y = doc.lastAutoTable.finalY;
 
-      // TOTAUX
       const subtotal  = tableRows.reduce((s, _, i) => {
         const tr = body.rows[i];
         return s + num(tr.querySelector('[data-field="qty"]')?.value) * num(tr.querySelector('[data-field="price"]')?.value);
@@ -1114,7 +1103,6 @@
       doc.text(`${fmt(total)} ${curr}`, colAmt, ty2+1, { align:'right' });
       ty2 += ttcH; y = ty2 + 10;
 
-      // NOTES
       const notes = $('#docNotes')?.value?.trim();
       if (notes) {
         const notesY = doc.lastAutoTable.finalY + 6;
@@ -1132,7 +1120,6 @@
         y = Math.max(y, notesY + notesH + 8);
       }
 
-      // SIGNATURE
       const signatoryName = $('#signatoryName')?.value?.trim() || '';
       const signatoryRole = $('#signatoryRole')?.value?.trim() || '';
       const sigExtraH = (signatoryName ? 5 : 0) + (signatoryRole ? 5 : 0);
@@ -1164,7 +1151,6 @@
         doc.text(`Fait à ${place}, le ${new Date().toLocaleDateString('fr-FR')}`, ml+sigBoxW+8, sigY+sigBoxH/2+2);
       }
 
-      // FOOTER
       const pageH  = doc.internal.pageSize.height;
       const footY  = pageH - 8;
       setFill(C.navy); doc.rect(0, footY-4, pw, 12, 'F');
@@ -1231,24 +1217,54 @@
   }
 
   /* ============================================================
-     MENU LATÉRAL DROIT
+     MENU LATÉRAL UNIQUE
      ============================================================ */
   function bindSideMenu() {
     const menu = $('#sideMenu');
-    const btn = $('#btnMenuToggle');
+    const btn = $('#btnMainMenu');
+    const menuToggle = $('#btnMenuToggle');
     const close = $('#btnCloseMenu');
+    const exportBtn = $('#btnMenuExport');
+    const submenu = $('#submenuExport');
     
+    // Ouvrir le menu
     btn?.addEventListener('click', () => menu?.classList.add('open'));
+    menuToggle?.addEventListener('click', () => menu?.classList.add('open'));
     close?.addEventListener('click', () => menu?.classList.remove('open'));
     
+    // Fermer en cliquant à l'extérieur
     document.addEventListener('click', e => {
-      if (!e.target.closest('.side-menu') && !e.target.closest('.btn-menu-toggle')) {
+      if (!e.target.closest('.side-menu') && 
+          !e.target.closest('.btn-main-menu') && 
+          !e.target.closest('.btn-menu-toggle')) {
         menu?.classList.remove('open');
       }
     });
     
-    $('#btnMenuProfile')?.addEventListener('click', () => {
-      $('#profileOverlay')?.classList.add('open');
+    // Toggle sous-menu export
+    exportBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (submenu) {
+        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+    
+    // Actions du menu
+    $('#btnMenuNew')?.addEventListener('click', () => {
+      if (confirm('Créer un nouveau document ?\n(Infos entreprise conservées, champs client vidés)')) {
+        resetToNew(true);
+        toast('Nouveau document créé', 'success');
+      }
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuSave')?.addEventListener('click', () => {
+      archiveDocument();
+      menu?.classList.remove('open');
+    });
+    
+    $('#btnMenuDuplicate')?.addEventListener('click', () => {
+      duplicateDocument();
       menu?.classList.remove('open');
     });
     
@@ -1272,23 +1288,26 @@
       menu?.classList.remove('open');
     });
     
-    $('#btnMenuExport')?.addEventListener('click', () => {
-      const submenu = $('#submenuExport');
-      if (submenu) submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
-    });
-    
     $('#btnMenuExportPdf')?.addEventListener('click', () => {
       exportPDF();
       menu?.classList.remove('open');
+      if (submenu) submenu.style.display = 'none';
     });
     
     $('#btnMenuExportExcel')?.addEventListener('click', () => {
       exportExcel();
       menu?.classList.remove('open');
+      if (submenu) submenu.style.display = 'none';
     });
     
     $('#btnMenuExportWa')?.addEventListener('click', () => {
       shareWhatsApp();
+      menu?.classList.remove('open');
+      if (submenu) submenu.style.display = 'none';
+    });
+    
+    $('#btnMenuProfile')?.addEventListener('click', () => {
+      $('#profileOverlay')?.classList.add('open');
       menu?.classList.remove('open');
     });
     
@@ -1440,54 +1459,58 @@
     }
   }
 
+  function applyProfileToDocument() {
+    if (!state.currentUser) return;
+    const profileRaw = localStorage.getItem(`pg_profile.${state.currentUser.id}`);
+    if (profileRaw) {
+      try {
+        const profile = JSON.parse(profileRaw);
+        const set = (id, v) => { const el = $(id); if (el && v) el.value = v; };
+        set('#emitterName',    profile.name);
+        set('#emitterAddress', profile.address);
+        set('#emitterExtra',   profile.extra);
+        set('#emitterTel',     profile.tel);
+        set('#emitterEmail',   profile.email);
+        
+        if (profile.logo) {
+          state.logoDataURL = profile.logo;
+          const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
+          if (lp && lph) {
+            lp.src = profile.logo;
+            lp.style.display = 'block';
+            lph.style.display = 'none';
+          }
+        }
+      } catch(e) {}
+    }
+  }
+
   /* ============================================================
      ÉVÉNEMENTS
      ============================================================ */
   function bindEvents() {
-    // Modes
     $('#btnDevis')?.addEventListener('click',    () => setMode('devis'));
     $('#btnFacture')?.addEventListener('click',  () => setMode('facture'));
     $('#btnProforma')?.addEventListener('click', () => setMode('proforma'));
 
-    // Statut
     $('#docStatus')?.addEventListener('change', e => { state.docStatus = e.target.value; scheduleSave(); });
 
-    // Undo/Redo
     $('#btnUndo')?.addEventListener('click', undo);
     $('#btnRedo')?.addEventListener('click', redo);
 
-    // Historique
-    $('#btnHistory')?.addEventListener('click',      openHistory);
     $('#btnCloseHistory')?.addEventListener('click', closeHistory);
     $('#historyOverlay')?.addEventListener('click',  e => { if (e.target === $('#historyOverlay')) closeHistory(); });
     $('#historySearch')?.addEventListener('input',   renderHistory);
     $('#filterType')?.addEventListener('change',     renderHistory);
     $('#filterStatus')?.addEventListener('change',   renderHistory);
 
-    // Clients
     $('#btnCloseClients')?.addEventListener('click', closeClients);
     $('#clientsOverlay')?.addEventListener('click',  e => { if (e.target === $('#clientsOverlay')) closeClients(); });
     $('#clientsSearch')?.addEventListener('input',   renderClientsPanel);
 
-    // Templates
     $('#btnCloseTemplate')?.addEventListener('click',() => $('#templateModal')?.classList.remove('open'));
     $('#templateModal')?.addEventListener('click',   e => { if (e.target === $('#templateModal')) $('#templateModal').classList.remove('open'); });
 
-    // Actions toolbar
-    $('#btnArchive')?.addEventListener('click',   archiveDocument);
-    $('#btnDuplicate')?.addEventListener('click', duplicateDocument);
-    $('#btnWhatsapp')?.addEventListener('click',  shareWhatsApp);
-    $('#btnPdf')?.addEventListener('click',       exportPDF);
-    $('#btnExcel')?.addEventListener('click',     exportExcel);
-
-    $('#btnNew')?.addEventListener('click', () => {
-      if (confirm('Créer un nouveau document ?\n(Infos entreprise conservées, champs client vidés)')) {
-        resetToNew(true);
-        toast('Nouveau document créé', 'success');
-      }
-    });
-
-    // Lignes
     $('#addRow')?.addEventListener('click', () => addRow({}, true));
 
     $('#itemsBody')?.addEventListener('click', e => {
@@ -1513,14 +1536,12 @@
       recalculate(); scheduleSave();
     });
 
-    // TVA / Remise / Devise
     $('#vatEnabled')?.addEventListener('change',      () => { recalculate(); scheduleSave(); });
     $('#discountEnabled')?.addEventListener('change', () => { recalculate(); scheduleSave(); });
     ['#vatRate','#discountRate','#currency'].forEach(id =>
       $(id)?.addEventListener('input', () => { recalculate(); scheduleSave(); })
     );
 
-    // Validation date
     $('#docValidity')?.addEventListener('change', () => {
       const validity = $('#docValidity')?.value;
       const docDate = $('#docDate')?.value;
@@ -1530,7 +1551,6 @@
       }
     });
 
-    // Validation email
     $('#clientEmail')?.addEventListener('blur', () => {
       const email = $('#clientEmail')?.value?.trim();
       if (email && !isValidEmail(email)) {
@@ -1538,21 +1558,19 @@
       }
     });
 
-    // Autosave sur tous les champs texte
     ['#emitterName','#emitterAddress','#emitterExtra','#emitterTel','#emitterEmail',
      '#clientName','#clientAddress','#clientExtra','#clientSiret','#clientTel','#clientEmail',
      '#docNumber','#docDate','#docValidity','#placeOfIssue','#docNotes','#signatoryName']
       .forEach(id => $(id)?.addEventListener('input', scheduleSave));
     $('#signatoryRole')?.addEventListener('change', scheduleSave);
 
-    // Logo
     $('#logoPlaceholder')?.addEventListener('click', () => $('#logoUpload')?.click());
     $('#logoUpload')?.addEventListener('change', e => {
       const file = e.target.files?.[0]; if (!file) return;
       const reader = new FileReader();
       reader.onload = ev => {
         state.logoDataURL = ev.target.result;
-        saveDraft();  // ✅ Sauvegarde IMMÉDIATE
+        saveDraft();
         const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
         if (lp) { lp.src = ev.target.result; lp.style.display = 'block'; }
         if (lph) lph.style.display = 'none';
@@ -1560,7 +1578,6 @@
       reader.readAsDataURL(file);
     });
 
-    // Signature image
     $('#sigUploadZone')?.addEventListener('click', () => {
       if (!$('#sigImgPreview').src || $('#sigImgPreview').style.display === 'none')
         $('#sigImgUpload')?.click();
@@ -1570,7 +1587,7 @@
       const reader = new FileReader();
       reader.onload = ev => {
         state.sigImgDataURL = ev.target.result;
-        saveDraft();  // ✅ Sauvegarde IMMÉDIATE
+        saveDraft();
         const sp = $('#sigImgPreview'), sph = $('#sigUploadHint'), scb = $('#btnClearSig');
         if (sp) { sp.src = ev.target.result; sp.style.display = 'block'; }
         if (sph) sph.style.display = 'none';
@@ -1587,33 +1604,20 @@
       scheduleSave();
     });
 
-    // Date courante
     const cd = $('#currentDate'); if (cd) cd.textContent = new Date().toLocaleDateString('fr-FR');
 
-    // Rappel expiration
     $('#btnCloseReminder')?.addEventListener('click', () => {
       const b = $('#reminderBanner'); if (b) b.style.display = 'none';
     });
 
-    // Mobile Bottom Nav
-    $('#mbnNew')?.addEventListener('click',     () => {
-      if (confirm('Nouveau document ?')) { resetToNew(true); toast('Nouveau document', 'success'); }
-    });
-    $('#mbnHistory')?.addEventListener('click', openHistory);
-    $('#mbnPdf')?.addEventListener('click',     exportPDF);
-    $('#mbnSettings')?.addEventListener('click', () => $('#settingsOverlay')?.classList.add('open'));
-
-    // Paramétrages
     $('#btnCloseSettings')?.addEventListener('click', () => $('#settingsOverlay')?.classList.remove('open'));
     $('#settingsOverlay')?.addEventListener('click', e => { if (e.target === $('#settingsOverlay')) $('#settingsOverlay')?.classList.remove('open'); });
     $('#btnSettingsSave')?.addEventListener('click', () => { toast('Paramètres sauvegardés', 'success'); });
 
-    // Dashboard
     $('#btnCloseProfile')?.addEventListener('click', () => $('#profileOverlay')?.classList.remove('open'));
     $('#btnCloseDashboard')?.addEventListener('click', () => $('#dashboardOverlay')?.classList.remove('open'));
     $('#btnDashboard')?.addEventListener('click', () => $('#dashboardOverlay')?.classList.add('open'));
 
-    // Raccourcis clavier
     document.addEventListener('keydown', e => {
       if ((e.ctrlKey||e.metaKey) && e.key === 's') { e.preventDefault(); archiveDocument(); }
       if ((e.ctrlKey||e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
@@ -1652,15 +1656,28 @@
     });
 
     $('#formLogin')?.addEventListener('submit', async e => {
-      e.preventDefault(); clearAuthError('loginError');
+      e.preventDefault();
+      e.stopPropagation();
+      
+      clearAuthError('loginError');
       const email    = $('#loginEmail')?.value?.trim();
       const password = $('#loginPassword')?.value;
-      if (!email || !password) { showAuthError('loginError','Veuillez remplir tous les champs.'); return; }
+      
+      if (!email || !password) { 
+        showAuthError('loginError','Veuillez remplir tous les champs.'); 
+        return; 
+      }
+      
       setAuthLoading('btnLogin', true);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setAuthLoading('btnLogin', false);
+      
       if (error) {
-        const msgs = { 'Invalid login credentials':'Email ou mot de passe incorrect.', 'Email not confirmed':'Confirmez votre email.', 'Too many requests':'Trop de tentatives.' };
+        const msgs = { 
+          'Invalid login credentials':'Email ou mot de passe incorrect.', 
+          'Email not confirmed':'Confirmez votre email.', 
+          'Too many requests':'Trop de tentatives.' 
+        };
         showAuthError('loginError', msgs[error.message] || error.message);
       }
     });
@@ -1712,7 +1729,7 @@
   }
 
   /* ============================================================
-     SUPABASE SYNC — ✅ Historique chargé depuis Supabase
+     SUPABASE SYNC
      ============================================================ */
   async function syncDocumentToSupabase(data, isNew) {
     try {
@@ -1813,7 +1830,6 @@
       const overlay = $('#authOverlay'); if (overlay) overlay.style.display = 'none';
       const pill = $('#userPill'); if (pill) pill.style.display = 'flex';
       
-      // ✅ Afficher le nom au lieu de l'email
       const nameEl = $('#userName');
       if (nameEl) {
         const name = session.user.user_metadata?.full_name 
@@ -1821,13 +1837,21 @@
         nameEl.textContent = name;
       }
 
-      // Charger le profil
       loadUserProfile(session.user.id);
       loadDocCountFromSupabase();
       
-      // ✅ CRITIQUE: Charger l'historique AVANT le draft
       loadHistoryFromSupabase().then(() => {
-        loadDraft();
+        const raw = localStorage.getItem(STORAGE_KEYS.draft);
+        if (raw) {
+          try { 
+            applyData(JSON.parse(raw)); 
+          } catch(e) { 
+            resetToNew(false); 
+          }
+        } else {
+          applyProfileToDocument();
+          resetToNew(false);
+        }
         recalculate();
         ensureOneRow();
         populateClientDatalist();
@@ -1839,7 +1863,6 @@
       state.currentUser = null; state.docCount = 0;
       const overlay = $('#authOverlay'); if (overlay) overlay.style.display = 'flex';
       const pill = $('#userPill'); if (pill) pill.style.display = 'none';
-      loadDraft();
     }
   }
 
