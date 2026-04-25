@@ -1281,3 +1281,7 @@ tr.dragging { opacity: 0.45; }
     padding: 0.3rem 0.2rem;
   }
 }
+/* Désactiver complètement le bouton flottant */
+.btn-menu-toggle {
+  display: none !important;
+}
