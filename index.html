@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <meta name="theme-color" content="#0F2B4D">
+  <meta name="theme-color" content="#1e3c72">
   <title>ProGestion — Devis / Facture</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -15,117 +15,647 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="light">
+<body>
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <div class="logo"><i class="fas fa-file-invoice"></i><span>ProGestion</span></div>
-      <button class="sidebar-close-mobile" id="sidebarCloseMobile"><i class="fas fa-times"></i></button>
+  <!-- ===== BARRE D'OUTILS ===== -->
+  <div class="toolbar" id="toolbar">
+    <div class="toolbar-left">
+      <span class="brand">
+        <i class="fas fa-file-invoice"></i>
+        <span class="brand-text">ProGestion</span>
+      </span>
     </div>
-    <nav class="sidebar-nav">
-      <button class="sidebar-item" data-view="dashboard"><i class="fas fa-chart-line"></i><span>Dashboard</span></button>
-      <button class="sidebar-item active" data-view="document"><i class="fas fa-file-alt"></i><span>Document</span></button>
-      <button class="sidebar-item" data-view="history"><i class="fas fa-history"></i><span>Historique</span></button>
-      <button class="sidebar-item" data-view="clients"><i class="fas fa-address-book"></i><span>Carnet clients</span></button>
-      <button class="sidebar-item" data-view="templates"><i class="fas fa-file-import"></i><span>Templates</span></button>
-      <button class="sidebar-item" data-view="profile"><i class="fas fa-user-circle"></i><span>Mon profil</span></button>
-      <button class="sidebar-item" data-view="settings"><i class="fas fa-cog"></i><span>Paramètres</span></button>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-info-small"><div class="user-avatar-small" id="sidebarAvatar">?</div><span id="sidebarUserName">Chargement...</span></div>
-      <button class="sidebar-item logout" id="navLogout"><i class="fas fa-sign-out-alt"></i><span>Déconnexion</span></button>
-      <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i><span>Thème sombre</span></button>
-    </div>
-  </aside>
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- MAIN CONTENT -->
-  <main class="main-content">
-    <div class="top-bar">
-      <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-      <div class="mode-switcher">
-        <button class="mode-btn active" id="btnDevis">DEVIS</button>
-        <button class="mode-btn" id="btnFacture">FACTURE</button>
-        <button class="mode-btn" id="btnProforma">PRO FORMA</button>
+    <div class="mode-switcher">
+      <button type="button" class="mode-btn active" id="btnDevis" title="Devis">
+        <i class="fas fa-file"></i>
+        <span class="mode-label">DEVIS</span>
+      </button>
+      <button type="button" class="mode-btn" id="btnFacture" title="Facture">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <span class="mode-label">FACTURE</span>
+      </button>
+      <button type="button" class="mode-btn" id="btnProforma" title="Pro Forma">
+        <i class="fas fa-file-alt"></i>
+        <span class="mode-label">PRO FORMA</span>
+      </button>
+    </div>
+
+    <div class="toolbar-right">
+      <div class="user-pill" id="userPill" style="display:none">
+        <button type="button" class="btn-profile-pill" id="btnProfilePill" title="Mon profil">
+          <img id="userAvatar" src="#" alt="Avatar" class="user-avatar" style="display:none">
+          <div class="user-avatar-fallback" id="userAvatarFallback">?</div>
+          <span id="userName" class="user-name-text"></span>
+        </button>
+        <span class="doc-counter-badge" id="docCounterBadge">0/10</span>
+        <button type="button" class="btn-logout" id="btnLogout" title="Se déconnecter">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
       </div>
-      <div class="user-pill-compact" id="userPillCompact" style="display:none">
-        <button class="btn-profile-pill" id="btnProfilePillCompact"><i class="fas fa-user-circle"></i><span id="userNameCompact"></span></button>
-        <span class="doc-counter-badge" id="docCounterBadgeCompact">0/10</span>
-      </div>
+
+      <button type="button" class="btn-main-menu" id="btnMainMenu">
+        <i class="fas fa-bars"></i>
+        <span>Menu</span>
+      </button>
     </div>
+  </div>
 
-    <div class="views-container">
-      <!-- DASHBOARD -->
-      <div class="view-pane" id="viewDashboard" style="display:none"><div class="dashboard-container" id="dashboardContainer"></div></div>
+  <div class="autosave-bar" id="autosaveBar">
+    <i class="fas fa-check-circle"></i> Brouillon sauvegardé
+  </div>
 
-      <!-- DOCUMENT (EDITION) -->
-      <div class="view-pane" id="viewDocument">
-        <div class="document-card">
-          <div class="doc-status-bar">
-            <div class="dsb-left"><span class="doc-type-badge" id="docTypeBadge">DEVIS</span><label>Statut :</label><select id="docStatus"><option value="draft">📝 Brouillon</option><option value="sent">📤 Envoyé</option><option value="accepted">✅ Accepté</option><option value="invoiced">💰 Facturé</option><option value="refused">❌ Refusé</option><option value="expired">⏰ Expiré</option></select></div>
-            <div class="dsb-right"><button class="btn-undoredo" id="btnUndo" disabled><i class="fas fa-undo"></i></button><button class="btn-undoredo" id="btnRedo" disabled><i class="fas fa-redo"></i></button></div>
-          </div>
-          <div class="document-header">
-            <div class="header-left">
-              <div class="logo-wrapper"><img id="logoPreview" src="#"><div class="logo-placeholder" id="logoPlaceholder"><i class="fas fa-cloud-upload-alt"></i><span>Logo</span></div><input type="file" id="logoUpload" accept="image/*"></div>
-              <div class="emitter-info">
-                <div class="info-row"><label><i class="fas fa-building"></i> Votre entreprise</label><input type="text" id="emitterName" placeholder="Nom de l'entreprise"></div>
-                <div class="info-row"><input type="text" id="emitterAddress" placeholder="Adresse"></div>
-                <div class="info-row"><input type="text" id="emitterExtra" placeholder="Complément d'adresse"></div>
-                <div class="info-row two-cols"><input type="tel" id="emitterTel" placeholder="Téléphone"><input type="email" id="emitterEmail" placeholder="Email"></div>
-                <div class="info-row"><input type="text" id="emitterIfu" placeholder="IFU / SIRET entreprise"></div>
-              </div>
+  <div class="reminder-banner" id="reminderBanner" style="display:none">
+    <i class="fas fa-exclamation-triangle"></i>
+    <span id="reminderText"></span>
+    <button type="button" id="btnCloseReminder"><i class="fas fa-times"></i></button>
+  </div>
+
+  <main>
+    <div class="document-card">
+      <div class="doc-status-bar">
+        <div class="dsb-left">
+          <span class="doc-type-badge" id="docTypeBadge">DEVIS</span>
+          <label class="dsb-label">Statut :</label>
+          <select id="docStatus" class="doc-status-select">
+            <option value="draft">📝 Brouillon</option>
+            <option value="sent">📤 Envoyé</option>
+            <option value="accepted">✅ Accepté</option>
+            <option value="invoiced">💰 Facturé</option>
+            <option value="refused">❌ Refusé</option>
+            <option value="expired">⏰ Expiré</option>
+          </select>
+        </div>
+        <div class="dsb-right">
+          <button type="button" class="btn-undoredo" id="btnUndo" title="Annuler (Ctrl+Z)" disabled>
+            <i class="fas fa-undo"></i>
+          </button>
+          <button type="button" class="btn-undoredo" id="btnRedo" title="Rétablir (Ctrl+Y)" disabled>
+            <i class="fas fa-redo"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="document-header" id="documentHeader">
+        <div class="header-left">
+          <div class="logo-wrapper" title="Cliquer pour changer le logo">
+            <img id="logoPreview" src="#" alt="Logo entreprise">
+            <div class="logo-placeholder" id="logoPlaceholder">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span>Logo</span>
             </div>
-            <div class="header-right">
-              <div class="doc-title-display" id="docTitle">DEVIS</div>
-              <div class="ref-grid"><div class="ref-field"><label>N°</label><input type="text" id="docNumber" placeholder="N° document"></div><div class="ref-field"><label>Date</label><input type="date" id="docDate"></div></div>
-              <div class="ref-field" id="validityContainer"><label>Valide jusqu'au</label><input type="date" id="docValidity"></div>
+            <input type="file" id="logoUpload" accept="image/*" aria-label="Importer logo">
+          </div>
+          <div class="emitter-info">
+            <div class="info-row">
+              <label><i class="fas fa-building"></i> Votre entreprise</label>
+              <input type="text" class="header-input" id="emitterName" placeholder="Nom de l'entreprise">
+            </div>
+            <div class="info-row">
+              <input type="text" class="header-input" id="emitterAddress" placeholder="Adresse">
+            </div>
+            <div class="info-row">
+              <input type="text" class="header-input" id="emitterExtra" placeholder="Complément d'adresse">
+            </div>
+            <div class="info-row two-cols">
+              <input type="tel" class="header-input" id="emitterTel" placeholder="Téléphone">
+              <input type="email" class="header-input" id="emitterEmail" placeholder="Email">
+            </div>
+            <div class="info-row">
+              <input type="text" class="header-input" id="emitterIfu" placeholder="IFU / SIRET entreprise">
             </div>
           </div>
-          <div class="document-body">
-            <div class="section-title"><i class="fas fa-user-tie"></i> Client</div>
-            <div class="client-section"><div class="client-grid"><input type="text" id="clientName" placeholder="Nom / Raison sociale" list="clientDatalist"><input type="text" id="clientAddress" placeholder="Adresse"><input type="text" id="clientExtra" placeholder="Complément d'adresse"><input type="text" id="clientSiret" placeholder="SIRET / IFU (optionnel)"><input type="tel" id="clientTel" placeholder="Téléphone client"><input type="email" id="clientEmail" placeholder="Email client"></div></div>
-            <div class="section-title"><i class="fas fa-list"></i> Prestations</div>
-            <div class="table-container"><table class="items-table" id="itemsTable"><thead><tr><th class="col-drag"></th><th class="col-designation">Désignation</th><th class="col-qty">Qté</th><th class="col-price">Prix unitaire HT</th><th class="col-total">Total HT</th><th class="col-actions"></th></tr></thead><tbody id="itemsBody"></tbody></table></div>
-            <button class="btn-add-row" id="addRow"><i class="fas fa-plus-circle"></i> Ajouter une ligne</button>
-            <div class="section-title"><i class="fas fa-sticky-note"></i> Notes &amp; Conditions</div>
-            <textarea id="docNotes" rows="4" placeholder="Conditions de paiement, délais de livraison, mentions légales…"></textarea>
-            <div class="document-footer"><div class="totals-section"><div class="totals-left"><div class="info-group"><div class="toggle-group"><input type="checkbox" id="vatEnabled" checked><label>TVA</label></div><div class="rate-input"><input type="number" id="vatRate" value="18" min="0" max="100" step="0.5"><span>%</span></div></div><div class="info-group"><div class="toggle-group"><input type="checkbox" id="discountEnabled"><label>Remise</label></div><div class="rate-input" id="discountInputContainer" style="display:none"><input type="number" id="discountRate" value="0" min="0" max="100" step="0.5"><span>%</span></div></div><div class="info-group"><div class="toggle-group static-label"><i class="fas fa-coins"></i> Devise</div><select id="currency"><option value="CFA">CFA</option><option value="EUR">EUR €</option><option value="USD">USD $</option><option value="GBP">GBP £</option><option value="XOF">XOF</option><option value="MAD">MAD</option></select></div></div><div class="totals-right"><table class="totals-table"><tbody><tr><td class="label-cell">Sous-total HT</td><td class="amount-cell"><span id="subtotal">0</span> <span class="curr">CFA</span></td></tr><tr id="discountRow" style="display:none"><td class="label-cell">Remise (<span id="discountRateDisplay">0</span>%)</td><td class="amount-cell discount-cell">−<span id="totalDiscount">0</span> <span class="curr">CFA</span></td></tr><tr id="vatRow"><td class="label-cell">TVA (<span id="vatRateDisplay">18</span>%)</td><td class="amount-cell"><span id="totalTax">0</span> <span class="curr">CFA</span></td></tr><tr class="total-row"><td class="label-cell">Total TTC</td><td class="amount-cell total"><span id="grandTotal">0</span> <span class="curr">CFA</span></td></tr></tbody></table></div></div></div>
+        </div>
+
+        <div class="header-right">
+          <div class="doc-title-display" id="docTitle">DEVIS</div>
+          <div class="ref-grid">
+            <div class="ref-field">
+              <label for="docNumber">N°</label>
+              <input type="text" class="ref-input" id="docNumber" placeholder="N° document">
+            </div>
+            <div class="ref-field">
+              <label for="docDate">Date</label>
+              <input type="date" class="ref-input" id="docDate">
+            </div>
           </div>
-          <div class="signature-section">
-            <div class="signature-left"><div class="signature-label">Cachet et signature</div><div class="signature-fields"><input type="text" id="signatoryName" placeholder="Nom et prénom du signataire"><select id="signatoryRole"><option value="">— Rôle —</option><option>Directeur Général</option><option>Directeur</option><option>Directeur Commercial</option><option>Comptable</option><option>Gérant</option></select></div><div class="sig-img-wrap"><div class="sig-upload-zone" id="sigUploadZone"><img id="sigImgPreview" src="#" style="display:none"><div class="sig-upload-hint"><i class="fas fa-signature"></i> Ajouter signature</div><input type="file" id="sigImgUpload" accept="image/*"></div><button class="btn-clear-sig" id="btnClearSig" style="display:none"><i class="fas fa-times"></i></button></div><div class="signature-line"></div></div>
-            <div class="signature-right">Fait à <input type="text" id="placeOfIssue" placeholder="Lieu" class="inline-input">, le <span id="currentDate"></span></div>
+          <div class="ref-field ref-field-full" id="validityContainer">
+            <label for="docValidity">Valide jusqu'au</label>
+            <input type="date" class="ref-input" id="docValidity">
           </div>
         </div>
       </div>
 
-      <!-- AUTRES VUES : HISTORIQUE, CLIENTS, TEMPLATES, PROFIL, PARAMÈTRES -->
-      <div class="view-pane" id="viewHistory" style="display:none"><div class="history-container"><div class="history-tools"><div class="search-wrap"><i class="fas fa-search"></i><input type="search" id="historySearch" placeholder="Rechercher..."></div><div class="history-filters-row"><select id="filterType"><option value="">Tous types</option><option value="devis">Devis</option><option value="facture">Facture</option><option value="proforma">Pro Forma</option></select><select id="filterStatus"><option value="">Tous statuts</option><option value="draft">Brouillon</option><option value="sent">Envoyé</option><option value="accepted">Accepté</option><option value="invoiced">Facturé</option><option value="refused">Refusé</option><option value="expired">Expiré</option></select></div></div><div class="history-list" id="historyList"></div></div></div>
-      <div class="view-pane" id="viewClients" style="display:none"><div class="clients-container"><div class="search-wrap"><i class="fas fa-search"></i><input type="search" id="clientsSearch" placeholder="Rechercher client..."></div><div class="history-list" id="clientsList"></div></div></div>
-      <div class="view-pane" id="viewTemplates" style="display:none"><div class="templates-grid" id="templateGrid"></div></div>
-      <div class="view-pane" id="viewProfile" style="display:none"><div class="profile-container"><div class="profile-section-title">Logo entreprise</div><div class="profile-logo-wrap"><div class="profile-logo-zone" id="profileLogoZone"><img id="profileLogoPreview" src="#" style="display:none"><div class="profile-logo-hint"><i class="fas fa-cloud-upload-alt"></i><span>Cliquer pour importer</span></div><input type="file" id="profileLogoUpload" accept="image/*"></div><button class="btn-clear-sig" id="btnClearProfileLogo" style="display:none"><i class="fas fa-times"></i></button></div><div class="profile-section-title">Informations entreprise</div><div class="profile-grid"><div class="profile-field"><label>Nom</label><input type="text" id="profileName" class="form-input"></div><div class="profile-field"><label>Adresse</label><input type="text" id="profileAddress" class="form-input"></div><div class="profile-field"><label>Complément</label><input type="text" id="profileExtra" class="form-input"></div><div class="profile-field"><label>Téléphone</label><input type="tel" id="profileTel" class="form-input"></div><div class="profile-field"><label>Email</label><input type="email" id="profileEmail" class="form-input"></div><div class="profile-field"><label>IFU</label><input type="text" id="profileIfu" class="form-input"></div></div><div class="profile-actions"><button class="btn-profile-save" id="btnProfileSave"><i class="fas fa-check"></i> Enregistrer</button><button class="btn-profile-apply" id="btnProfileApply"><i class="fas fa-file-import"></i> Appliquer</button></div></div></div>
-      <div class="view-pane" id="viewSettings" style="display:none"><div class="settings-container"><div class="profile-section-title">Couleurs</div><div class="settings-color-row"><div class="color-pick-group"><label>Principale</label><input type="color" id="settingPrimary" value="#1e3c72"><span id="settingPrimaryHex">#1e3c72</span></div><div class="color-pick-group"><label>Secondaire</label><input type="color" id="settingSecondary" value="#2a5298"><span id="settingSecondaryHex">#2a5298</span></div></div><div class="profile-section-title">Police</div><select id="settingFont" class="form-input"><option value="Inter">Inter</option><option value="Roboto">Roboto</option><option value="Poppins">Poppins</option></select><div class="profile-section-title">Pied de page</div><textarea id="settingFooter" rows="3" class="notes-textarea" placeholder="Pied de page personnalisé"></textarea><div class="profile-section-title">Rappels</div><label class="toggle-check-label"><input type="checkbox" id="settingReminders" checked> Afficher rappels expiration</label><div class="profile-actions"><button class="btn-profile-save" id="btnSettingsSave"><i class="fas fa-save"></i> Sauvegarder</button></div></div></div>
-    </div>
+      <div class="document-body">
+        <div class="section-title"><i class="fas fa-user-tie"></i> Client</div>
+        <div class="client-section">
+          <div class="client-grid">
+            <input type="text" class="form-input" id="clientName" placeholder="Nom / Raison sociale" list="clientDatalist" autocomplete="off">
+            <input type="text" class="form-input" id="clientAddress" placeholder="Adresse">
+            <input type="text" class="form-input" id="clientExtra" placeholder="Complément d'adresse">
+            <input type="text" class="form-input" id="clientSiret" placeholder="SIRET / IFU (optionnel)">
+            <input type="tel" class="form-input" id="clientTel" placeholder="Téléphone client">
+            <input type="email" class="form-input" id="clientEmail" placeholder="Email client">
+          </div>
+          <button type="button" class="btn-add-client-form" id="btnOpenAddClientForm">
+            <i class="fas fa-user-plus"></i> Enregistrer un nouveau client
+          </button>
+        </div>
 
-    <!-- ACTIONS FLOTTANTES (uniquement pour la vue document) -->
-    <div class="floating-actions" id="floatingActions" style="display:flex">
-      <button class="fab-btn" id="fabSave" title="Sauvegarder (Ctrl+S)"><i class="fas fa-save"></i></button>
-      <button class="fab-btn" id="fabDuplicate" title="Dupliquer"><i class="fas fa-copy"></i></button>
-      <button class="fab-btn" id="fabNew" title="Nouveau document"><i class="fas fa-plus"></i></button>
-      <button class="fab-btn" id="fabWhatsapp" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>
-      <button class="fab-btn" id="fabPdf" title="PDF"><i class="fas fa-file-pdf"></i></button>
-      <button class="fab-btn" id="fabExcel" title="Excel"><i class="fas fa-file-excel"></i></button>
-    </div>
+        <div class="section-title"><i class="fas fa-list"></i> Prestations</div>
+        <div class="table-container">
+          <table class="items-table" id="itemsTable">
+            <thead>
+              <tr>
+                <th class="col-drag"></th>
+                <th class="col-designation">Désignation</th>
+                <th class="col-qty">Qté</th>
+                <th class="col-price">Prix unitaire HT</th>
+                <th class="col-total">Total HT</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn-add-row" id="addRow">
+          <i class="fas fa-plus-circle"></i> Ajouter une ligne
+        </button>
 
-    <div class="toast-notification" id="toast"></div>
+        <div class="section-title section-title-notes">
+          <i class="fas fa-sticky-note"></i> Notes &amp; Conditions
+        </div>
+        <textarea class="notes-textarea" id="docNotes" rows="4"
+          placeholder="Conditions de paiement, délais de livraison, mentions légales…"></textarea>
+
+        <div class="document-footer">
+          <div class="totals-section">
+            <div class="totals-left">
+              <div class="info-group">
+                <div class="toggle-group">
+                  <input type="checkbox" id="vatEnabled" checked>
+                  <label for="vatEnabled">TVA</label>
+                </div>
+                <div class="rate-input" id="vatInputContainer">
+                  <input type="number" id="vatRate" value="18" min="0" max="100" step="0.5">
+                  <span>%</span>
+                </div>
+              </div>
+              <div class="info-group">
+                <div class="toggle-group">
+                  <input type="checkbox" id="discountEnabled">
+                  <label for="discountEnabled">Remise</label>
+                </div>
+                <div class="rate-input" id="discountInputContainer" style="display:none">
+                  <input type="number" id="discountRate" value="0" min="0" max="100" step="0.5">
+                  <span>%</span>
+                </div>
+              </div>
+              <div class="info-group">
+                <div class="toggle-group static-label"><i class="fas fa-coins"></i>&nbsp; Devise</div>
+                <select id="currency" class="form-input currency-select">
+                  <option value="CFA">CFA</option>
+                  <option value="EUR">EUR €</option>
+                  <option value="USD">USD $</option>
+                  <option value="GBP">GBP £</option>
+                  <option value="XOF">XOF</option>
+                  <option value="MAD">MAD</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="totals-right">
+              <table class="totals-table">
+                <tbody>
+                  <tr>
+                    <td class="label-cell">Sous-total HT</td>
+                    <td class="amount-cell"><span id="subtotal">0</span>&nbsp;<span class="curr">CFA</span></td>
+                  </tr>
+                  <tr id="discountRow" style="display:none">
+                    <td class="label-cell">Remise (<span id="discountRateDisplay">0</span>%)</td>
+                    <td class="amount-cell discount-cell">−<span id="totalDiscount">0</span>&nbsp;<span class="curr">CFA</span></td>
+                  </tr>
+                  <tr id="vatRow">
+                    <td class="label-cell">TVA (<span id="vatRateDisplay">18</span>%)</td>
+                    <td class="amount-cell"><span id="totalTax">0</span>&nbsp;<span class="curr">CFA</span></td>
+                  </tr>
+                  <tr class="total-row">
+                    <td class="label-cell">Total TTC</td>
+                    <td class="amount-cell total"><span id="grandTotal">0</span>&nbsp;<span class="curr">CFA</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="signature-section">
+        <div class="signature-left">
+          <div class="signature-label">Cachet et signature</div>
+          <div class="signature-fields">
+            <input type="text" id="signatoryName" class="inline-input sig-name-input" placeholder="Nom et prénom du signataire">
+            <select id="signatoryRole" class="inline-select">
+              <option value="">— Rôle —</option>
+              <option value="Directeur Général">Directeur Général</option>
+              <option value="Directeur">Directeur</option>
+              <option value="Directeur Commercial">Directeur Commercial</option>
+              <option value="Comptable">Comptable</option>
+              <option value="Secrétaire">Secrétaire</option>
+              <option value="Responsable Administratif">Responsable Administratif</option>
+              <option value="Gérant">Gérant</option>
+            </select>
+          </div>
+          <div class="sig-img-wrap">
+            <div class="sig-upload-zone" id="sigUploadZone" title="Ajouter une image de signature">
+              <img id="sigImgPreview" src="#" alt="Signature" style="display:none">
+              <div class="sig-upload-hint" id="sigUploadHint">
+                <i class="fas fa-signature"></i> Ajouter signature
+              </div>
+              <input type="file" id="sigImgUpload" accept="image/*" aria-label="Image signature">
+            </div>
+            <button type="button" class="btn-clear-sig" id="btnClearSig" style="display:none" title="Supprimer">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="signature-line"></div>
+        </div>
+        <div class="signature-right">
+          Fait à&nbsp;<input type="text" id="placeOfIssue" placeholder="Lieu" class="inline-input">,
+          le&nbsp;<span id="currentDate"></span>
+        </div>
+      </div>
+    </div>
   </main>
 
-  <datalist id="clientDatalist"></datalist>
+  <!-- ===== MODAL AJOUT CLIENT ===== -->
+  <div class="client-modal-overlay" id="clientModalOverlay">
+    <div class="client-modal">
+      <div class="client-modal-header">
+        <span><i class="fas fa-user-plus"></i> Nouveau client</span>
+        <button type="button" id="btnCloseClientModal"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="client-modal-body">
+        <div class="client-modal-grid">
+          <div class="modal-field">
+            <label>Nom / Raison sociale *</label>
+            <input type="text" id="modalClientName" class="form-input" placeholder="Nom complet">
+          </div>
+          <div class="modal-field">
+            <label>Téléphone</label>
+            <input type="tel" id="modalClientTel" class="form-input" placeholder="Téléphone">
+          </div>
+          <div class="modal-field">
+            <label>Email</label>
+            <input type="email" id="modalClientEmail" class="form-input" placeholder="Email">
+          </div>
+          <div class="modal-field">
+            <label>Adresse</label>
+            <input type="text" id="modalClientAddress" class="form-input" placeholder="Adresse">
+          </div>
+          <div class="modal-field">
+            <label>Complément d'adresse</label>
+            <input type="text" id="modalClientExtra" class="form-input" placeholder="Complément">
+          </div>
+          <div class="modal-field">
+            <label>SIRET / IFU</label>
+            <input type="text" id="modalClientSiret" class="form-input" placeholder="SIRET / IFU">
+          </div>
+        </div>
+      </div>
+      <div class="client-modal-footer">
+        <button type="button" class="btn-modal-cancel" id="btnCancelClient">Annuler</button>
+        <button type="button" class="btn-modal-save" id="btnSaveNewClient">
+          <i class="fas fa-save"></i> Enregistrer le client
+        </button>
+      </div>
+    </div>
+  </div>
 
-  <!-- AUTH -->
-  <div class="auth-overlay" id="authOverlay"><div class="auth-card"><div class="auth-header"><div class="auth-logo"><i class="fas fa-file-invoice"></i></div><h1>ProGestion</h1><p>Gérez vos devis et factures</p></div><div class="auth-tabs"><button class="auth-tab active" id="tabLogin">Se connecter</button><button class="auth-tab" id="tabRegister">Créer un compte</button></div><form id="formLogin"><div class="auth-field"><label>Email</label><input type="email" id="loginEmail" required></div><div class="auth-field"><label>Mot de passe</label><input type="password" id="loginPassword" required></div><div class="auth-error" id="loginError"></div><button type="submit" class="auth-submit">Connexion</button></form><form id="formRegister" style="display:none"><div class="auth-field"><label>Email</label><input type="email" id="regEmail" required></div><div class="auth-field"><label>Mot de passe</label><input type="password" id="regPassword" required minlength="8"></div><div class="auth-field"><label>Confirmer</label><input type="password" id="regConfirm" required></div><div class="auth-error" id="registerError"></div><button type="submit" class="auth-submit">Créer le compte</button></form><p class="auth-footer">Sécurisé par Supabase</p></div></div>
-  <div class="limit-overlay" id="limitOverlay" style="display:none"><div class="limit-card"><div class="limit-icon"><i class="fas fa-lock"></i></div><h2>Limite atteinte</h2><p>Vous avez atteint 10 documents max. Contactez l'administrateur.</p><a href="https://wa.me/22968908277" class="btn-whatsapp-cta"><i class="fab fa-whatsapp"></i> WhatsApp</a><button id="btnLimitClose">Fermer</button></div></div>
+  <!-- ===== MENU LATÉRAL ===== -->
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-header">
+      <span><i class="fas fa-file-invoice"></i> ProGestion</span>
+      <button type="button" id="btnCloseMenu"><i class="fas fa-times"></i></button>
+    </div>
+    <nav class="side-menu-nav">
+      <button type="button" class="side-menu-item" id="btnMenuNew">
+        <i class="fas fa-plus-circle"></i> Nouveau document
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuSave">
+        <i class="fas fa-save"></i> Sauvegarder
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuDuplicate">
+        <i class="fas fa-copy"></i> Dupliquer
+      </button>
+      
+      <div class="side-menu-divider"></div>
+      
+      <button type="button" class="side-menu-item" id="btnMenuHistory">
+        <i class="fas fa-history"></i> Historique
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuClients">
+        <i class="fas fa-address-book"></i> Carnet clients
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuDashboard">
+        <i class="fas fa-chart-bar"></i> Dashboard
+      </button>
+      
+      <div class="side-menu-divider"></div>
+      
+      <button type="button" class="side-menu-item" id="btnMenuExport">
+        <i class="fas fa-download"></i> Exporter
+        <i class="fas fa-chevron-right" style="margin-left: auto; font-size: 0.7rem;"></i>
+      </button>
+      <div class="submenu-export" id="submenuExport" style="display: none;">
+        <button class="submenu-item" id="btnMenuExportPdf">
+          <i class="fas fa-file-pdf"></i> PDF
+        </button>
+        <button class="submenu-item" id="btnMenuExportExcel">
+          <i class="fas fa-file-excel"></i> Excel
+        </button>
+        <button class="submenu-item" id="btnMenuExportWa">
+          <i class="fab fa-whatsapp"></i> WhatsApp
+        </button>
+      </div>
+      
+      <div class="side-menu-divider"></div>
+      
+      <button type="button" class="side-menu-item" id="btnMenuProfile">
+        <i class="fas fa-user-circle"></i> Mon profil
+      </button>
+      <button type="button" class="side-menu-item" id="btnMenuSettings">
+        <i class="fas fa-cog"></i> Paramètres
+      </button>
+      
+      <div class="side-menu-divider"></div>
+      
+      <button type="button" class="side-menu-item" id="btnMenuLogout">
+        <i class="fas fa-sign-out-alt"></i> Déconnexion
+      </button>
+    </nav>
+  </aside>
+
+  <button type="button" class="btn-menu-toggle" id="btnMenuToggle" title="Menu">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- ===== PANNEAUX ===== -->
+  <div class="history-overlay" id="historyOverlay" role="dialog" aria-label="Historique des documents">
+    <div class="history-panel">
+      <div class="history-panel-header">
+        <span><i class="fas fa-history"></i> Historique</span>
+        <button type="button" id="btnCloseHistory"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="history-tools">
+        <div class="search-wrap">
+          <i class="fas fa-search search-icon"></i>
+          <input type="search" id="historySearch" placeholder="Rechercher par client, n°…">
+        </div>
+        <div class="history-filters-row">
+          <select id="filterType" class="filter-select">
+            <option value="">Tous types</option>
+            <option value="devis">Devis</option>
+            <option value="facture">Facture</option>
+            <option value="proforma">Pro Forma</option>
+          </select>
+          <select id="filterStatus" class="filter-select">
+            <option value="">Tous statuts</option>
+            <option value="draft">Brouillon</option>
+            <option value="sent">Envoyé</option>
+            <option value="accepted">Accepté</option>
+            <option value="invoiced">Facturé</option>
+            <option value="refused">Refusé</option>
+            <option value="expired">Expiré</option>
+          </select>
+        </div>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <div class="history-overlay" id="clientsOverlay" role="dialog" aria-label="Carnet clients">
+    <div class="history-panel">
+      <div class="history-panel-header">
+        <span><i class="fas fa-address-book"></i> Carnet clients</span>
+        <button type="button" id="btnCloseClients"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="history-tools">
+        <div class="search-wrap">
+          <i class="fas fa-search search-icon"></i>
+          <input type="search" id="clientsSearch" placeholder="Rechercher client…">
+        </div>
+        <button type="button" class="btn-add-client-inline" id="btnAddClientFromCarnet">
+          <i class="fas fa-user-plus"></i> Nouveau client
+        </button>
+      </div>
+      <div class="history-list" id="clientsList"></div>
+    </div>
+  </div>
+
+  <div class="history-overlay" id="profileOverlay" role="dialog" aria-label="Profil utilisateur">
+    <div class="history-panel">
+      <div class="history-panel-header">
+        <span><i class="fas fa-user-circle"></i> Mon profil</span>
+        <button type="button" id="btnCloseProfile"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="profile-body">
+        <div class="profile-section-title">Logo de l'entreprise</div>
+        <div class="profile-logo-wrap">
+          <div class="profile-logo-zone" id="profileLogoZone" title="Cliquer pour changer">
+            <img id="profileLogoPreview" src="#" alt="Logo" style="display:none">
+            <div class="profile-logo-hint" id="profileLogoHint">
+              <i class="fas fa-cloud-upload-alt"></i><span>Cliquer pour importer</span>
+            </div>
+            <input type="file" id="profileLogoUpload" accept="image/*">
+          </div>
+          <button type="button" class="btn-clear-sig" id="btnClearProfileLogo" style="display:none">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="profile-section-title">Informations entreprise</div>
+        <div class="profile-grid">
+          <div class="profile-field">
+            <label>Nom de l'entreprise</label>
+            <input type="text" id="profileName" class="form-input" placeholder="Mon entreprise">
+          </div>
+          <div class="profile-field">
+            <label>Adresse</label>
+            <input type="text" id="profileAddress" class="form-input" placeholder="Adresse complète">
+          </div>
+          <div class="profile-field">
+            <label>Complément</label>
+            <input type="text" id="profileExtra" class="form-input" placeholder="Ville, Pays…">
+          </div>
+          <div class="profile-field">
+            <label>Téléphone</label>
+            <input type="tel" id="profileTel" class="form-input" placeholder="+229…">
+          </div>
+          <div class="profile-field">
+            <label>Email</label>
+            <input type="email" id="profileEmail" class="form-input" placeholder="contact@…">
+          </div>
+          <div class="profile-field">
+            <label>IFU / SIRET</label>
+            <input type="text" id="profileIfu" class="form-input" placeholder="Numéro fiscal">
+          </div>
+        </div>
+
+        <div class="profile-info-box">
+          <i class="fas fa-info-circle"></i>
+          Ces informations seront pré-remplies automatiquement dans chaque nouveau document. Vous pouvez les modifier document par document.
+        </div>
+
+        <div class="profile-actions">
+          <button type="button" class="btn-profile-save" id="btnProfileSave">
+            <i class="fas fa-check"></i> Enregistrer le profil
+          </button>
+          <button type="button" class="btn-profile-apply" id="btnProfileApply">
+            <i class="fas fa-file-import"></i> Appliquer au document actuel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="history-overlay" id="settingsOverlay" role="dialog" aria-label="Paramètres">
+    <div class="history-panel">
+      <div class="history-panel-header">
+        <span><i class="fas fa-cog"></i> Paramètres</span>
+        <button type="button" id="btnCloseSettings"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="profile-body">
+        <div class="profile-section-title">Couleurs de l'application</div>
+        <div class="settings-color-row">
+          <div class="color-pick-group">
+            <label>Couleur principale</label>
+            <div class="color-pick-wrap">
+              <input type="color" id="settingPrimary" value="#1e3c72">
+              <span id="settingPrimaryHex">#1e3c72</span>
+            </div>
+          </div>
+          <div class="color-pick-group">
+            <label>Couleur secondaire</label>
+            <div class="color-pick-wrap">
+              <input type="color" id="settingSecondary" value="#2a5298">
+              <span id="settingSecondaryHex">#2a5298</span>
+            </div>
+          </div>
+        </div>
+        <div class="color-preview" id="colorPreview">
+          <div class="cp-header">Aperçu</div>
+          <div class="cp-body">Votre document aura ces couleurs dans l'en-tête et les totaux.</div>
+        </div>
+
+        <div class="profile-section-title" style="margin-top:1.5rem">Police d'affichage</div>
+        <select id="settingFont" class="form-input" style="max-width:260px">
+          <option value="Inter">Inter (défaut)</option>
+          <option value="Roboto">Roboto</option>
+          <option value="Poppins">Poppins</option>
+          <option value="Lato">Lato</option>
+          <option value="Open Sans">Open Sans</option>
+        </select>
+
+        <div class="profile-section-title" style="margin-top:1.5rem">Pied de page personnalisé</div>
+        <textarea id="settingFooter" class="notes-textarea" rows="3"
+          placeholder="Ex : RCCM BJ-COT-2024-B12-00123 | IFU : 123456789"></textarea>
+
+        <div class="profile-section-title" style="margin-top:1.5rem">Rappels</div>
+        <label class="toggle-check-label">
+          <input type="checkbox" id="settingReminders" checked>
+          <span>Afficher les rappels d'expiration de devis (J-7, J-3)</span>
+        </label>
+
+        <div class="profile-actions">
+          <button type="button" class="btn-profile-save" id="btnSettingsSave">
+            <i class="fas fa-check"></i> Enregistrer les paramètres
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="history-overlay" id="dashboardOverlay" role="dialog" aria-label="Dashboard">
+    <div class="history-panel history-panel-wide">
+      <div class="history-panel-header">
+        <span><i class="fas fa-chart-bar"></i> Dashboard</span>
+        <button type="button" id="btnCloseDashboard"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="dashboard-body" id="dashboardBody"></div>
+    </div>
+  </div>
+
+  <div class="toast-notification" id="toast" role="status" aria-live="polite"></div>
+
+  <datalist id="clientDatalist"></datalist>
+  <datalist id="itemDatalist"></datalist>
+
+  <!-- ===== AUTH MODERN ===== -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-container">
+    <div class="auth-illustration">
+      <div class="auth-illustration-inner">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <h2>ProGestion</h2>
+        <p>Gérez vos devis et factures<br>en toute simplicité</p>
+      </div>
+    </div>
+    <div class="auth-form-container">
+      <div class="auth-tabs-modern">
+        <button class="auth-tab-modern active" id="tabLoginModern">Connexion</button>
+        <button class="auth-tab-modern" id="tabRegisterModern">Inscription</button>
+      </div>
+      
+      <!-- Formulaire de connexion -->
+      <form id="formLoginModern" class="auth-form-modern">
+        <div class="input-group-modern">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="loginEmailModern" placeholder="Adresse e-mail" required>
+        </div>
+        <div class="input-group-modern">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="loginPasswordModern" placeholder="Mot de passe" required>
+          <button type="button" class="toggle-pw-modern" data-target="loginPasswordModern">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="auth-error-modern" id="loginErrorModern"></div>
+        <button type="submit" class="auth-submit-modern">
+          <span>Se connecter</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </form>
+      
+      <!-- Formulaire d'inscription -->
+      <form id="formRegisterModern" class="auth-form-modern" style="display:none">
+        <div class="input-group-modern">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="regEmailModern" placeholder="Adresse e-mail" required>
+        </div>
+        <div class="input-group-modern">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="regPasswordModern" placeholder="Mot de passe (min. 8 caractères)" required minlength="8">
+          <button type="button" class="toggle-pw-modern" data-target="regPasswordModern">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="input-group-modern">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="regConfirmModern" placeholder="Confirmer le mot de passe" required>
+          <button type="button" class="toggle-pw-modern" data-target="regConfirmModern">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="auth-error-modern" id="registerErrorModern"></div>
+        <button type="submit" class="auth-submit-modern">
+          <span>Créer mon compte</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
 
   <script src="script.js"></script>
 </body>
