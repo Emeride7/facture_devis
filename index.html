@@ -1,265 +1,132 @@
-/* ============================================================
-   PROGESTION V4.1 - SIDEBAR + THÈME SOMBRE + LAYOUT PROPRE
-   ============================================================ */
-:root {
-  --primary: #0F2B4D;
-  --primary-light: #1E3A5F;
-  --secondary: #4F46E5;
-  --secondary-light: #6366F1;
-  --success: #10B981;
-  --danger: #FF6B6B;
-  --warning: #F59E0B;
-  --bg: #F8FAFC;
-  --surface: #FFFFFF;
-  --text: #0F172A;
-  --text-secondary: #475569;
-  --border: #E2E8F0;
-  --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-  --radius: 12px;
-  --radius-sm: 8px;
-  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-[data-theme="dark"] {
-  --primary: #1E293B;
-  --primary-light: #334155;
-  --secondary: #818CF8;
-  --secondary-light: #A5B4FC;
-  --bg: #0F172A;
-  --surface: #1E293B;
-  --text: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --border: #334155;
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  transition: var(--transition);
-  min-height: 100vh;
-}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#0F2B4D">
+  <title>ProGestion — Devis / Facture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="light">
 
-/* ========== SIDEBAR ========== */
-.sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 260px;
-  height: 100vh;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  z-index: 200;
-  transition: var(--transition);
-  transform: translateX(0);
-}
-.sidebar-header {
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-}
-.logo { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
-.logo i { margin-right: 0.5rem; color: var(--secondary); }
-.sidebar-close-mobile { display: none; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
-.sidebar-nav { flex:1; padding: 1rem 0; display: flex; flex-direction: column; gap: 0.25rem; }
-.sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1.5rem;
-  background: none;
-  border: none;
-  width: 100%;
-  text-align: left;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: var(--transition);
-}
-.sidebar-item i { width: 1.5rem; font-size: 1.1rem; }
-.sidebar-item:hover { background: var(--bg); color: var(--text); }
-.sidebar-item.active { background: var(--bg); color: var(--secondary); border-right: 3px solid var(--secondary); }
-.sidebar-footer { padding: 1rem 0 1.5rem; border-top: 1px solid var(--border); }
-.user-info-small { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; font-size: 0.85rem; }
-.user-avatar-small { width: 28px; height: 28px; background: var(--secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
-.theme-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1.5rem;
-  background: none;
-  border: none;
-  width: 100%;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-.theme-toggle:hover { background: var(--bg); color: var(--text); }
-.sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; display: none; }
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo"><i class="fas fa-file-invoice"></i><span>ProGestion</span></div>
+      <button class="sidebar-close-mobile" id="sidebarCloseMobile"><i class="fas fa-times"></i></button>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item" data-view="dashboard"><i class="fas fa-chart-line"></i><span>Dashboard</span></button>
+      <button class="sidebar-item active" data-view="document"><i class="fas fa-file-alt"></i><span>Document</span></button>
+      <button class="sidebar-item" data-view="history"><i class="fas fa-history"></i><span>Historique</span></button>
+      <button class="sidebar-item" data-view="clients"><i class="fas fa-address-book"></i><span>Carnet clients</span></button>
+      <button class="sidebar-item" data-view="templates"><i class="fas fa-file-import"></i><span>Templates</span></button>
+      <button class="sidebar-item" data-view="profile"><i class="fas fa-user-circle"></i><span>Mon profil</span></button>
+      <button class="sidebar-item" data-view="settings"><i class="fas fa-cog"></i><span>Paramètres</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info-small"><div class="user-avatar-small" id="sidebarAvatar">?</div><span id="sidebarUserName">Chargement...</span></div>
+      <button class="sidebar-item logout" id="navLogout"><i class="fas fa-sign-out-alt"></i><span>Déconnexion</span></button>
+      <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i><span>Thème sombre</span></button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-/* ========== MAIN CONTENT ========== */
-.main-content { margin-left: 260px; min-height: 100vh; display: flex; flex-direction: column; }
-.top-bar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0.75rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.menu-toggle { display: none; background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--text); }
-.mode-switcher { display: flex; background: var(--bg); border-radius: 40px; padding: 0.2rem; }
-.mode-btn { background: transparent; border: none; padding: 0.4rem 1rem; border-radius: 30px; font-weight: 600; font-size: 0.8rem; cursor: pointer; color: var(--text-secondary); }
-.mode-btn.active { background: var(--secondary); color: white; }
-.user-pill-compact { display: flex; align-items: center; gap: 0.5rem; }
-.btn-profile-pill { background: none; border: none; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text); }
-.doc-counter-badge { background: var(--primary); color: white; border-radius: 20px; padding: 0.15rem 0.5rem; font-size: 0.7rem; }
-.views-container { padding: 1.5rem; flex: 1; }
-.view-pane { animation: fadeIn 0.2s ease; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <div class="top-bar">
+      <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+      <div class="mode-switcher">
+        <button class="mode-btn active" id="btnDevis">DEVIS</button>
+        <button class="mode-btn" id="btnFacture">FACTURE</button>
+        <button class="mode-btn" id="btnProforma">PRO FORMA</button>
+      </div>
+      <div class="user-pill-compact" id="userPillCompact" style="display:none">
+        <button class="btn-profile-pill" id="btnProfilePillCompact"><i class="fas fa-user-circle"></i><span id="userNameCompact"></span></button>
+        <span class="doc-counter-badge" id="docCounterBadgeCompact">0/10</span>
+      </div>
+    </div>
 
-/* ========== CARTE DOCUMENT (identique à la version originale) ========== */
-.document-card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  overflow: hidden;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.doc-status-bar { padding: 0.8rem 1.5rem; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
-.doc-type-badge { background: var(--primary); color: white; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 20px; }
-.doc-status-select { border: 1px solid var(--border); border-radius: 20px; padding: 0.2rem 0.6rem; background: var(--surface); color: var(--text); }
-.btn-undoredo { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.6rem; cursor: pointer; }
-.document-header { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); color: white; padding: 1.5rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-.header-left { display: flex; gap: 1rem; flex-wrap: wrap; }
-.logo-wrapper { position: relative; width: 80px; height: 80px; }
-.logo-wrapper img { width: 100%; height: 100%; object-fit: contain; background: white; border-radius: 8px; display: none; }
-.logo-placeholder { width: 100%; height: 100%; background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.7rem; cursor: pointer; }
-.emitter-info { flex: 1; min-width: 200px; }
-.info-row { margin-bottom: 0.5rem; }
-.info-row.two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-.info-row label { font-size: 0.65rem; opacity: 0.8; display: block; margin-bottom: 0.2rem; }
-.header-input, .ref-input { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 0.4rem 0.6rem; color: white; width: 100%; }
-.header-input::placeholder { color: rgba(255,255,255,0.5); }
-.header-right { text-align: right; min-width: 200px; }
-.doc-title-display { font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
-.ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; }
-.ref-field label { font-size: 0.65rem; opacity: 0.8; display: block; }
-.document-body { padding: 1.5rem; }
-.section-title { font-size: 0.75rem; font-weight: 800; color: var(--secondary); margin: 1.5rem 0 1rem; display: flex; align-items: center; gap: 0.5rem; }
-.client-section { background: var(--bg); border-radius: 8px; padding: 1rem; border-left: 3px solid var(--secondary); }
-.client-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 0.8rem; }
-.form-input { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; width: 100%; background: var(--surface); color: var(--text); }
-.table-container { overflow-x: auto; margin: 1rem 0; }
-.items-table { width: 100%; border-collapse: collapse; }
-.items-table th { background: var(--primary); color: white; padding: 0.5rem; font-size: 0.7rem; text-align: left; }
-.items-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); }
-.drag-handle { cursor: grab; text-align: center; }
-.remove-row-btn { background: none; border: 1px solid var(--danger); color: var(--danger); border-radius: 20px; padding: 0.2rem 0.5rem; cursor: pointer; }
-.btn-add-row { background: none; border: 2px dashed var(--secondary); border-radius: 30px; padding: 0.5rem; width: 100%; cursor: pointer; color: var(--secondary); margin-top: 0.5rem; }
-.notes-textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem; background: var(--surface); color: var(--text); resize: vertical; }
-.document-footer { margin-top: 1.5rem; }
-.totals-section { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-.totals-left { display: flex; flex-direction: column; gap: 0.8rem; }
-.info-group { display: flex; align-items: center; gap: 0.5rem; background: var(--bg); padding: 0.5rem 1rem; border-radius: 30px; }
-.toggle-group { display: flex; align-items: center; gap: 0.3rem; }
-.rate-input { display: flex; align-items: center; gap: 0.2rem; }
-.rate-input input { width: 60px; padding: 0.2rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); }
-.totals-right { min-width: 250px; background: var(--bg); border-radius: 12px; padding: 1rem; }
-.totals-table { width: 100%; }
-.label-cell { color: var(--text-secondary); }
-.amount-cell { text-align: right; font-weight: 600; }
-.discount-cell { color: var(--danger); }
-.total-row .amount-cell { font-size: 1.2rem; color: var(--secondary); }
-.signature-section { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; background: var(--bg); gap: 1rem; }
-.signature-fields { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.sig-upload-zone { width: 150px; height: 60px; border: 2px dashed var(--border); border-radius: 8px; position: relative; cursor: pointer; overflow: hidden; }
-.sig-upload-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
-.btn-clear-sig { background: none; border: 1px solid var(--danger); border-radius: 50%; width: 24px; height: 24px; cursor: pointer; color: var(--danger); }
-.inline-input { border: none; border-bottom: 1px solid var(--border); background: transparent; padding: 0.2rem 0; width: 100px; }
+    <div class="views-container">
+      <!-- DASHBOARD -->
+      <div class="view-pane" id="viewDashboard" style="display:none"><div class="dashboard-container" id="dashboardContainer"></div></div>
 
-/* ========== DASHBOARD ========== */
-.dashboard-container { max-width: 1200px; margin: 0 auto; }
-.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 1rem; margin-bottom: 2rem; }
-.dashboard-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
-.dashboard-card .value { font-size: 1.8rem; font-weight: 800; color: var(--secondary); }
-.dashboard-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1.5rem; }
-.client-list li { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+      <!-- DOCUMENT (EDITION) -->
+      <div class="view-pane" id="viewDocument">
+        <div class="document-card">
+          <div class="doc-status-bar">
+            <div class="dsb-left"><span class="doc-type-badge" id="docTypeBadge">DEVIS</span><label>Statut :</label><select id="docStatus"><option value="draft">📝 Brouillon</option><option value="sent">📤 Envoyé</option><option value="accepted">✅ Accepté</option><option value="invoiced">💰 Facturé</option><option value="refused">❌ Refusé</option><option value="expired">⏰ Expiré</option></select></div>
+            <div class="dsb-right"><button class="btn-undoredo" id="btnUndo" disabled><i class="fas fa-undo"></i></button><button class="btn-undoredo" id="btnRedo" disabled><i class="fas fa-redo"></i></button></div>
+          </div>
+          <div class="document-header">
+            <div class="header-left">
+              <div class="logo-wrapper"><img id="logoPreview" src="#"><div class="logo-placeholder" id="logoPlaceholder"><i class="fas fa-cloud-upload-alt"></i><span>Logo</span></div><input type="file" id="logoUpload" accept="image/*"></div>
+              <div class="emitter-info">
+                <div class="info-row"><label><i class="fas fa-building"></i> Votre entreprise</label><input type="text" id="emitterName" placeholder="Nom de l'entreprise"></div>
+                <div class="info-row"><input type="text" id="emitterAddress" placeholder="Adresse"></div>
+                <div class="info-row"><input type="text" id="emitterExtra" placeholder="Complément d'adresse"></div>
+                <div class="info-row two-cols"><input type="tel" id="emitterTel" placeholder="Téléphone"><input type="email" id="emitterEmail" placeholder="Email"></div>
+                <div class="info-row"><input type="text" id="emitterIfu" placeholder="IFU / SIRET entreprise"></div>
+              </div>
+            </div>
+            <div class="header-right">
+              <div class="doc-title-display" id="docTitle">DEVIS</div>
+              <div class="ref-grid"><div class="ref-field"><label>N°</label><input type="text" id="docNumber" placeholder="N° document"></div><div class="ref-field"><label>Date</label><input type="date" id="docDate"></div></div>
+              <div class="ref-field" id="validityContainer"><label>Valide jusqu'au</label><input type="date" id="docValidity"></div>
+            </div>
+          </div>
+          <div class="document-body">
+            <div class="section-title"><i class="fas fa-user-tie"></i> Client</div>
+            <div class="client-section"><div class="client-grid"><input type="text" id="clientName" placeholder="Nom / Raison sociale" list="clientDatalist"><input type="text" id="clientAddress" placeholder="Adresse"><input type="text" id="clientExtra" placeholder="Complément d'adresse"><input type="text" id="clientSiret" placeholder="SIRET / IFU (optionnel)"><input type="tel" id="clientTel" placeholder="Téléphone client"><input type="email" id="clientEmail" placeholder="Email client"></div></div>
+            <div class="section-title"><i class="fas fa-list"></i> Prestations</div>
+            <div class="table-container"><table class="items-table" id="itemsTable"><thead><tr><th class="col-drag"></th><th class="col-designation">Désignation</th><th class="col-qty">Qté</th><th class="col-price">Prix unitaire HT</th><th class="col-total">Total HT</th><th class="col-actions"></th></tr></thead><tbody id="itemsBody"></tbody></table></div>
+            <button class="btn-add-row" id="addRow"><i class="fas fa-plus-circle"></i> Ajouter une ligne</button>
+            <div class="section-title"><i class="fas fa-sticky-note"></i> Notes &amp; Conditions</div>
+            <textarea id="docNotes" rows="4" placeholder="Conditions de paiement, délais de livraison, mentions légales…"></textarea>
+            <div class="document-footer"><div class="totals-section"><div class="totals-left"><div class="info-group"><div class="toggle-group"><input type="checkbox" id="vatEnabled" checked><label>TVA</label></div><div class="rate-input"><input type="number" id="vatRate" value="18" min="0" max="100" step="0.5"><span>%</span></div></div><div class="info-group"><div class="toggle-group"><input type="checkbox" id="discountEnabled"><label>Remise</label></div><div class="rate-input" id="discountInputContainer" style="display:none"><input type="number" id="discountRate" value="0" min="0" max="100" step="0.5"><span>%</span></div></div><div class="info-group"><div class="toggle-group static-label"><i class="fas fa-coins"></i> Devise</div><select id="currency"><option value="CFA">CFA</option><option value="EUR">EUR €</option><option value="USD">USD $</option><option value="GBP">GBP £</option><option value="XOF">XOF</option><option value="MAD">MAD</option></select></div></div><div class="totals-right"><table class="totals-table"><tbody><tr><td class="label-cell">Sous-total HT</td><td class="amount-cell"><span id="subtotal">0</span> <span class="curr">CFA</span></td></tr><tr id="discountRow" style="display:none"><td class="label-cell">Remise (<span id="discountRateDisplay">0</span>%)</td><td class="amount-cell discount-cell">−<span id="totalDiscount">0</span> <span class="curr">CFA</span></td></tr><tr id="vatRow"><td class="label-cell">TVA (<span id="vatRateDisplay">18</span>%)</td><td class="amount-cell"><span id="totalTax">0</span> <span class="curr">CFA</span></td></tr><tr class="total-row"><td class="label-cell">Total TTC</td><td class="amount-cell total"><span id="grandTotal">0</span> <span class="curr">CFA</span></td></tr></tbody></table></div></div></div>
+          </div>
+          <div class="signature-section">
+            <div class="signature-left"><div class="signature-label">Cachet et signature</div><div class="signature-fields"><input type="text" id="signatoryName" placeholder="Nom et prénom du signataire"><select id="signatoryRole"><option value="">— Rôle —</option><option>Directeur Général</option><option>Directeur</option><option>Directeur Commercial</option><option>Comptable</option><option>Gérant</option></select></div><div class="sig-img-wrap"><div class="sig-upload-zone" id="sigUploadZone"><img id="sigImgPreview" src="#" style="display:none"><div class="sig-upload-hint"><i class="fas fa-signature"></i> Ajouter signature</div><input type="file" id="sigImgUpload" accept="image/*"></div><button class="btn-clear-sig" id="btnClearSig" style="display:none"><i class="fas fa-times"></i></button></div><div class="signature-line"></div></div>
+            <div class="signature-right">Fait à <input type="text" id="placeOfIssue" placeholder="Lieu" class="inline-input">, le <span id="currentDate"></span></div>
+          </div>
+        </div>
+      </div>
 
-/* ========== HISTORIQUE & AUTRES ========== */
-.history-list { display: flex; flex-direction: column; gap: 1rem; }
-.history-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
-.history-item-actions { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
-.btn-load { background: var(--secondary); color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 20px; cursor: pointer; }
-.history-tools, .clients-container, .templates-grid, .profile-container, .settings-container { background: var(--surface); border-radius: var(--radius); padding: 1rem; }
-.search-wrap { position: relative; margin-bottom: 1rem; }
-.search-wrap i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
-.search-wrap input { width: 100%; padding: 0.6rem 1rem 0.6rem 2.5rem; border: 1px solid var(--border); border-radius: 30px; background: var(--surface); color: var(--text); }
-.history-filters-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-.filter-select { flex: 1; padding: 0.4rem; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); }
-.templates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 1rem; }
-.template-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; text-align: center; cursor: pointer; }
-.profile-logo-wrap { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-.profile-logo-zone { width: 80px; height: 80px; border: 2px dashed var(--border); border-radius: 8px; position: relative; cursor: pointer; overflow: hidden; }
-.profile-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; margin-bottom: 1.5rem; }
-.profile-field label { font-size: 0.7rem; font-weight: 600; display: block; margin-bottom: 0.2rem; }
-.profile-actions { display: flex; gap: 1rem; margin-top: 1rem; }
-.btn-profile-save, .btn-profile-apply { padding: 0.5rem 1rem; border-radius: 30px; border: none; cursor: pointer; font-weight: 600; }
-.btn-profile-save { background: var(--secondary); color: white; }
-.btn-profile-apply { background: var(--bg); border: 1px solid var(--secondary); color: var(--secondary); }
-.floating-actions { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 0.5rem; z-index: 150; }
-.fab-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--secondary); color: white; border: none; cursor: pointer; box-shadow: var(--shadow); transition: transform 0.1s; }
-.fab-btn:hover { transform: scale(1.05); }
-.toast-notification { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 30px; opacity: 0; transition: opacity 0.2s; z-index: 300; }
-.toast-notification.show { opacity: 1; }
+      <!-- AUTRES VUES : HISTORIQUE, CLIENTS, TEMPLATES, PROFIL, PARAMÈTRES -->
+      <div class="view-pane" id="viewHistory" style="display:none"><div class="history-container"><div class="history-tools"><div class="search-wrap"><i class="fas fa-search"></i><input type="search" id="historySearch" placeholder="Rechercher..."></div><div class="history-filters-row"><select id="filterType"><option value="">Tous types</option><option value="devis">Devis</option><option value="facture">Facture</option><option value="proforma">Pro Forma</option></select><select id="filterStatus"><option value="">Tous statuts</option><option value="draft">Brouillon</option><option value="sent">Envoyé</option><option value="accepted">Accepté</option><option value="invoiced">Facturé</option><option value="refused">Refusé</option><option value="expired">Expiré</option></select></div></div><div class="history-list" id="historyList"></div></div></div>
+      <div class="view-pane" id="viewClients" style="display:none"><div class="clients-container"><div class="search-wrap"><i class="fas fa-search"></i><input type="search" id="clientsSearch" placeholder="Rechercher client..."></div><div class="history-list" id="clientsList"></div></div></div>
+      <div class="view-pane" id="viewTemplates" style="display:none"><div class="templates-grid" id="templateGrid"></div></div>
+      <div class="view-pane" id="viewProfile" style="display:none"><div class="profile-container"><div class="profile-section-title">Logo entreprise</div><div class="profile-logo-wrap"><div class="profile-logo-zone" id="profileLogoZone"><img id="profileLogoPreview" src="#" style="display:none"><div class="profile-logo-hint"><i class="fas fa-cloud-upload-alt"></i><span>Cliquer pour importer</span></div><input type="file" id="profileLogoUpload" accept="image/*"></div><button class="btn-clear-sig" id="btnClearProfileLogo" style="display:none"><i class="fas fa-times"></i></button></div><div class="profile-section-title">Informations entreprise</div><div class="profile-grid"><div class="profile-field"><label>Nom</label><input type="text" id="profileName" class="form-input"></div><div class="profile-field"><label>Adresse</label><input type="text" id="profileAddress" class="form-input"></div><div class="profile-field"><label>Complément</label><input type="text" id="profileExtra" class="form-input"></div><div class="profile-field"><label>Téléphone</label><input type="tel" id="profileTel" class="form-input"></div><div class="profile-field"><label>Email</label><input type="email" id="profileEmail" class="form-input"></div><div class="profile-field"><label>IFU</label><input type="text" id="profileIfu" class="form-input"></div></div><div class="profile-actions"><button class="btn-profile-save" id="btnProfileSave"><i class="fas fa-check"></i> Enregistrer</button><button class="btn-profile-apply" id="btnProfileApply"><i class="fas fa-file-import"></i> Appliquer</button></div></div></div>
+      <div class="view-pane" id="viewSettings" style="display:none"><div class="settings-container"><div class="profile-section-title">Couleurs</div><div class="settings-color-row"><div class="color-pick-group"><label>Principale</label><input type="color" id="settingPrimary" value="#1e3c72"><span id="settingPrimaryHex">#1e3c72</span></div><div class="color-pick-group"><label>Secondaire</label><input type="color" id="settingSecondary" value="#2a5298"><span id="settingSecondaryHex">#2a5298</span></div></div><div class="profile-section-title">Police</div><select id="settingFont" class="form-input"><option value="Inter">Inter</option><option value="Roboto">Roboto</option><option value="Poppins">Poppins</option></select><div class="profile-section-title">Pied de page</div><textarea id="settingFooter" rows="3" class="notes-textarea" placeholder="Pied de page personnalisé"></textarea><div class="profile-section-title">Rappels</div><label class="toggle-check-label"><input type="checkbox" id="settingReminders" checked> Afficher rappels expiration</label><div class="profile-actions"><button class="btn-profile-save" id="btnSettingsSave"><i class="fas fa-save"></i> Sauvegarder</button></div></div></div>
+    </div>
 
-/* ========== AUTH ========== */
-.auth-overlay { position: fixed; inset: 0; background: var(--primary); display: flex; align-items: center; justify-content: center; z-index: 500; }
-.auth-card { background: var(--surface); border-radius: 24px; padding: 2rem; width: 90%; max-width: 400px; }
-.auth-header { text-align: center; margin-bottom: 1.5rem; }
-.auth-logo { width: 60px; height: 60px; background: var(--secondary); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; margin-bottom: 1rem; }
-.auth-tabs { display: flex; gap: 0.5rem; background: var(--bg); border-radius: 30px; padding: 0.2rem; margin-bottom: 1rem; }
-.auth-tab { flex: 1; background: none; border: none; padding: 0.5rem; border-radius: 30px; cursor: pointer; }
-.auth-tab.active { background: var(--secondary); color: white; }
-.auth-field { margin-bottom: 1rem; }
-.auth-field label { display: block; font-size: 0.7rem; margin-bottom: 0.2rem; }
-.auth-field input { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
-.auth-submit { width: 100%; padding: 0.6rem; background: var(--secondary); color: white; border: none; border-radius: 30px; cursor: pointer; font-weight: 600; }
-.auth-error { color: var(--danger); font-size: 0.8rem; margin-bottom: 0.5rem; display: none; }
-.auth-error.visible { display: block; }
-.limit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 600; }
-.limit-card { background: var(--surface); border-radius: 24px; padding: 2rem; text-align: center; max-width: 300px; }
-.btn-whatsapp-cta { display: inline-block; background: #25D366; color: white; padding: 0.5rem 1rem; border-radius: 30px; text-decoration: none; margin: 1rem 0; }
+    <!-- ACTIONS FLOTTANTES (uniquement pour la vue document) -->
+    <div class="floating-actions" id="floatingActions" style="display:flex">
+      <button class="fab-btn" id="fabSave" title="Sauvegarder (Ctrl+S)"><i class="fas fa-save"></i></button>
+      <button class="fab-btn" id="fabDuplicate" title="Dupliquer"><i class="fas fa-copy"></i></button>
+      <button class="fab-btn" id="fabNew" title="Nouveau document"><i class="fas fa-plus"></i></button>
+      <button class="fab-btn" id="fabWhatsapp" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>
+      <button class="fab-btn" id="fabPdf" title="PDF"><i class="fas fa-file-pdf"></i></button>
+      <button class="fab-btn" id="fabExcel" title="Excel"><i class="fas fa-file-excel"></i></button>
+    </div>
 
-/* ========== RESPONSIVE ========== */
-@media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); width: 280px; }
-  .sidebar.open { transform: translateX(0); }
-  .sidebar-close-mobile { display: block; }
-  .sidebar-overlay.open { display: block; }
-  .main-content { margin-left: 0; }
-  .menu-toggle { display: block; }
-  .top-bar { padding: 0.5rem 1rem; }
-  .mode-btn span { display: none; }
-  .mode-btn i { margin: 0; }
-  .client-grid { grid-template-columns: 1fr; }
-  .totals-section { flex-direction: column; }
-  .profile-grid { grid-template-columns: 1fr; }
-  .views-container { padding: 1rem; }
-  .floating-actions { bottom: 70px; right: 16px; }
-  .fab-btn { width: 40px; height: 40px; }
-}
-@media (max-width: 480px) {
-  .document-header { flex-direction: column; }
-  .header-right { text-align: left; margin-top: 1rem; }
-  .doc-title-display { font-size: 1.4rem; }
-  .signature-section { flex-direction: column; }
-}
+    <div class="toast-notification" id="toast"></div>
+  </main>
+
+  <datalist id="clientDatalist"></datalist>
+
+  <!-- AUTH -->
+  <div class="auth-overlay" id="authOverlay"><div class="auth-card"><div class="auth-header"><div class="auth-logo"><i class="fas fa-file-invoice"></i></div><h1>ProGestion</h1><p>Gérez vos devis et factures</p></div><div class="auth-tabs"><button class="auth-tab active" id="tabLogin">Se connecter</button><button class="auth-tab" id="tabRegister">Créer un compte</button></div><form id="formLogin"><div class="auth-field"><label>Email</label><input type="email" id="loginEmail" required></div><div class="auth-field"><label>Mot de passe</label><input type="password" id="loginPassword" required></div><div class="auth-error" id="loginError"></div><button type="submit" class="auth-submit">Connexion</button></form><form id="formRegister" style="display:none"><div class="auth-field"><label>Email</label><input type="email" id="regEmail" required></div><div class="auth-field"><label>Mot de passe</label><input type="password" id="regPassword" required minlength="8"></div><div class="auth-field"><label>Confirmer</label><input type="password" id="regConfirm" required></div><div class="auth-error" id="registerError"></div><button type="submit" class="auth-submit">Créer le compte</button></form><p class="auth-footer">Sécurisé par Supabase</p></div></div>
+  <div class="limit-overlay" id="limitOverlay" style="display:none"><div class="limit-card"><div class="limit-icon"><i class="fas fa-lock"></i></div><h2>Limite atteinte</h2><p>Vous avez atteint 10 documents max. Contactez l'administrateur.</p><a href="https://wa.me/22968908277" class="btn-whatsapp-cta"><i class="fab fa-whatsapp"></i> WhatsApp</a><button id="btnLimitClose">Fermer</button></div></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
