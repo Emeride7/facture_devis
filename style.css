@@ -2637,3 +2637,7 @@ tr.dragging {
     print-color-adjust: exact;
   }
 }
+/* Supprimer la barre de navigation mobile du bas */
+.mobile-nav {
+  display: none !important;
+}
