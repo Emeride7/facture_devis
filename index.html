@@ -17,7 +17,7 @@
 </head>
 <body>
 
-  <!-- ===== BARRE D'OUTILS ALLÉGÉE ===== -->
+  <!-- ===== BARRE D'OUTILS ===== -->
   <div class="toolbar" id="toolbar">
     <div class="toolbar-left">
       <span class="brand">
@@ -157,6 +157,9 @@
             <input type="tel" class="form-input" id="clientTel" placeholder="Téléphone client">
             <input type="email" class="form-input" id="clientEmail" placeholder="Email client">
           </div>
+          <button type="button" class="btn-add-client-form" id="btnOpenAddClientForm">
+            <i class="fas fa-user-plus"></i> Enregistrer un nouveau client
+          </button>
         </div>
 
         <div class="section-title"><i class="fas fa-list"></i> Prestations</div>
@@ -285,7 +288,51 @@
     </div>
   </main>
 
-  <!-- ===== MENU LATÉRAL UNIQUE ===== -->
+  <!-- ===== MODAL AJOUT CLIENT ===== -->
+  <div class="client-modal-overlay" id="clientModalOverlay">
+    <div class="client-modal">
+      <div class="client-modal-header">
+        <span><i class="fas fa-user-plus"></i> Nouveau client</span>
+        <button type="button" id="btnCloseClientModal"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="client-modal-body">
+        <div class="client-modal-grid">
+          <div class="modal-field">
+            <label>Nom / Raison sociale *</label>
+            <input type="text" id="modalClientName" class="form-input" placeholder="Nom complet">
+          </div>
+          <div class="modal-field">
+            <label>Téléphone</label>
+            <input type="tel" id="modalClientTel" class="form-input" placeholder="Téléphone">
+          </div>
+          <div class="modal-field">
+            <label>Email</label>
+            <input type="email" id="modalClientEmail" class="form-input" placeholder="Email">
+          </div>
+          <div class="modal-field">
+            <label>Adresse</label>
+            <input type="text" id="modalClientAddress" class="form-input" placeholder="Adresse">
+          </div>
+          <div class="modal-field">
+            <label>Complément d'adresse</label>
+            <input type="text" id="modalClientExtra" class="form-input" placeholder="Complément">
+          </div>
+          <div class="modal-field">
+            <label>SIRET / IFU</label>
+            <input type="text" id="modalClientSiret" class="form-input" placeholder="SIRET / IFU">
+          </div>
+        </div>
+      </div>
+      <div class="client-modal-footer">
+        <button type="button" class="btn-modal-cancel" id="btnCancelClient">Annuler</button>
+        <button type="button" class="btn-modal-save" id="btnSaveNewClient">
+          <i class="fas fa-save"></i> Enregistrer le client
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MENU LATÉRAL ===== -->
   <aside class="side-menu" id="sideMenu">
     <div class="side-menu-header">
       <span><i class="fas fa-file-invoice"></i> ProGestion</span>
@@ -309,9 +356,6 @@
       </button>
       <button type="button" class="side-menu-item" id="btnMenuClients">
         <i class="fas fa-address-book"></i> Carnet clients
-      </button>
-      <button type="button" class="side-menu-item" id="btnMenuTemplate">
-        <i class="fas fa-file-import"></i> Templates
       </button>
       <button type="button" class="side-menu-item" id="btnMenuDashboard">
         <i class="fas fa-chart-bar"></i> Dashboard
@@ -401,18 +445,11 @@
           <i class="fas fa-search search-icon"></i>
           <input type="search" id="clientsSearch" placeholder="Rechercher client…">
         </div>
+        <button type="button" class="btn-add-client-inline" id="btnAddClientFromCarnet">
+          <i class="fas fa-user-plus"></i> Nouveau client
+        </button>
       </div>
       <div class="history-list" id="clientsList"></div>
-    </div>
-  </div>
-
-  <div class="history-overlay" id="templateModal" role="dialog" aria-label="Templates">
-    <div class="history-panel">
-      <div class="history-panel-header">
-        <span><i class="fas fa-file-import"></i> Templates</span>
-        <button type="button" id="btnCloseTemplate"><i class="fas fa-times"></i></button>
-      </div>
-      <div style="padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;overflow-y:auto;flex:1" id="templateGrid"></div>
     </div>
   </div>
 
@@ -554,76 +591,71 @@
   <datalist id="clientDatalist"></datalist>
   <datalist id="itemDatalist"></datalist>
 
-  <!-- ===== AUTH ===== -->
-  <div class="auth-overlay" id="authOverlay">
-    <div class="auth-card">
-      <div class="auth-header">
-        <div class="auth-logo"><i class="fas fa-file-invoice"></i></div>
-        <h1 class="auth-title">ProGestion</h1>
-        <p class="auth-subtitle">Gérez vos devis et factures en toute simplicité</p>
+  <!-- ===== AUTH MODERN ===== -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-container">
+    <div class="auth-illustration">
+      <div class="auth-illustration-inner">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <h2>ProGestion</h2>
+        <p>Gérez vos devis et factures<br>en toute simplicité</p>
       </div>
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab active" id="tabLogin">Se connecter</button>
-        <button type="button" class="auth-tab" id="tabRegister">Créer un compte</button>
+    </div>
+    <div class="auth-form-container">
+      <div class="auth-tabs-modern">
+        <button class="auth-tab-modern active" id="tabLoginModern">Connexion</button>
+        <button class="auth-tab-modern" id="tabRegisterModern">Inscription</button>
       </div>
-      <form class="auth-form" id="formLogin" novalidate>
-        <div class="auth-field">
-          <label for="loginEmail"><i class="fas fa-envelope"></i> Adresse e-mail</label>
-          <input type="email" id="loginEmail" placeholder="votre@email.com" autocomplete="email" required>
+      
+      <!-- Formulaire de connexion -->
+      <form id="formLoginModern" class="auth-form-modern">
+        <div class="input-group-modern">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="loginEmailModern" placeholder="Adresse e-mail" required>
         </div>
-        <div class="auth-field">
-          <label for="loginPassword"><i class="fas fa-lock"></i> Mot de passe</label>
-          <div class="password-wrap">
-            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required>
-            <button type="button" class="toggle-pw" data-target="loginPassword"><i class="fas fa-eye"></i></button>
-          </div>
+        <div class="input-group-modern">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="loginPasswordModern" placeholder="Mot de passe" required>
+          <button type="button" class="toggle-pw-modern" data-target="loginPasswordModern">
+            <i class="fas fa-eye"></i>
+          </button>
         </div>
-        <div class="auth-error" id="loginError"></div>
-        <button type="submit" class="auth-submit" id="btnLogin">
-          <span class="btn-text">Se connecter</span>
-          <i class="fas fa-spinner fa-spin btn-loader" style="display:none"></i>
+        <div class="auth-error-modern" id="loginErrorModern"></div>
+        <button type="submit" class="auth-submit-modern">
+          <span>Se connecter</span>
+          <i class="fas fa-arrow-right"></i>
         </button>
       </form>
-      <form class="auth-form" id="formRegister" novalidate style="display:none">
-        <div class="auth-field">
-          <label for="regEmail"><i class="fas fa-envelope"></i> Adresse e-mail</label>
-          <input type="email" id="regEmail" placeholder="votre@email.com" autocomplete="email" required>
+      
+      <!-- Formulaire d'inscription -->
+      <form id="formRegisterModern" class="auth-form-modern" style="display:none">
+        <div class="input-group-modern">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="regEmailModern" placeholder="Adresse e-mail" required>
         </div>
-        <div class="auth-field">
-          <label for="regPassword"><i class="fas fa-lock"></i> Mot de passe</label>
-          <div class="password-wrap">
-            <input type="password" id="regPassword" placeholder="Min. 8 caractères" autocomplete="new-password" required minlength="8">
-            <button type="button" class="toggle-pw" data-target="regPassword"><i class="fas fa-eye"></i></button>
-          </div>
+        <div class="input-group-modern">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="regPasswordModern" placeholder="Mot de passe (min. 8 caractères)" required minlength="8">
+          <button type="button" class="toggle-pw-modern" data-target="regPasswordModern">
+            <i class="fas fa-eye"></i>
+          </button>
         </div>
-        <div class="auth-field">
-          <label for="regConfirm"><i class="fas fa-lock"></i> Confirmer le mot de passe</label>
-          <div class="password-wrap">
-            <input type="password" id="regConfirm" placeholder="Répéter le mot de passe" autocomplete="new-password" required>
-            <button type="button" class="toggle-pw" data-target="regConfirm"><i class="fas fa-eye"></i></button>
-          </div>
+        <div class="input-group-modern">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="regConfirmModern" placeholder="Confirmer le mot de passe" required>
+          <button type="button" class="toggle-pw-modern" data-target="regConfirmModern">
+            <i class="fas fa-eye"></i>
+          </button>
         </div>
-        <div class="auth-error" id="registerError"></div>
-        <button type="submit" class="auth-submit" id="btnRegister">
-          <span class="btn-text">Créer mon compte</span>
-          <i class="fas fa-spinner fa-spin btn-loader" style="display:none"></i>
+        <div class="auth-error-modern" id="registerErrorModern"></div>
+        <button type="submit" class="auth-submit-modern">
+          <span>Créer mon compte</span>
+          <i class="fas fa-arrow-right"></i>
         </button>
       </form>
-      <p class="auth-footer">Vos données sont sécurisées et privées.</p>
     </div>
   </div>
-
-  <div class="limit-overlay" id="limitOverlay" style="display:none">
-    <div class="limit-card">
-      <div class="limit-icon"><i class="fas fa-lock"></i></div>
-      <h2 class="limit-title">Limite atteinte</h2>
-      <p class="limit-msg">Vous avez atteint la limite gratuite de <strong>10 documents</strong>.<br>Contactez l'administrateur pour continuer.</p>
-      <a href="https://wa.me/22968908277?text=Bonjour%2C%20j'ai%20atteint%20la%20limite%20de%2010%20documents%20sur%20ProGestion." target="_blank" rel="noopener noreferrer" class="btn-whatsapp-cta">
-        <i class="fab fa-whatsapp"></i> Contacter via WhatsApp
-      </a>
-      <button type="button" class="btn-limit-close" id="btnLimitClose">Fermer</button>
-    </div>
-  </div>
+</div>
 
   <script src="script.js"></script>
 </body>
