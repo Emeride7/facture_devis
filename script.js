@@ -321,8 +321,37 @@
     if (activeBtn) activeBtn.classList.add('active');
     const validityContainer = $('#validityContainer');
     if (validityContainer) validityContainer.style.display = hasValidity ? '' : 'none';
+    
+    // ✅ FIX #4: Changer le numéro si le mode change
     const docNumber = $('#docNumber');
-    if (docNumber && !docNumber.value) docNumber.value = consumeNextNumber(mode);
+    if (docNumber) {
+      if (!docNumber.value) {
+        // Nouveau document: générer le numéro
+        docNumber.value = consumeNextNumber(mode);
+      } else {
+        // Document existant: vérifier si le préfixe change
+        const currentNum = docNumber.value.split('-')[0];
+        const newPrefix = MODES[mode].prefix;
+        
+        // Si le préfixe change (ex: D23 → F23)
+        if (currentNum && currentNum[0] !== newPrefix) {
+          if (confirm(`Changer le mode du document?\nUn nouveau numéro sera généré (${MODES[mode].label}).`)) {
+            docNumber.value = consumeNextNumber(mode);
+          } else {
+            // Revenir au mode précédent
+            let prevMode = 'devis';
+            for (const m in MODES) {
+              if (MODES[m].prefix === currentNum[0]) {
+                prevMode = m;
+                break;
+              }
+            }
+            state.mode = prevMode;
+            setMode(prevMode);  // Rappeler récursivement (une seule fois)
+          }
+        }
+      }
+    }
   }
   
   function setStatus(status) { state.docStatus = status || 'draft'; const sel = $('#docStatus'); if (sel) sel.value = state.docStatus; }
@@ -342,18 +371,76 @@
     const tr = document.createElement('tr');
     tr.dataset.rowId = item.id || uid();
     const makeTd = cls => { const td = document.createElement('td'); if (cls) td.className = cls; return td; };
-    const makeInput = (type, cls, ph, val, field) => { const inp = document.createElement('input'); inp.type = type; inp.className = cls; inp.placeholder = ph; inp.value = val; inp.dataset.field = field; if (type === 'number') { inp.min = '0'; inp.step = '0.01'; } return inp; };
-    const tdDrag = makeTd('drag-handle'); tdDrag.innerHTML = '<i class="fas fa-grip-vertical"></i>'; tr.appendChild(tdDrag);
-    const tdD = makeTd('col-designation'); const inpD = makeInput('text', 'item-input', 'Désignation', item.designation || '', 'designation'); tdD.appendChild(inpD); tr.appendChild(tdD);
-    const tdQ = makeTd('col-qty'); tdQ.appendChild(makeInput('number', 'item-input num', '0', item.qty ?? 1, 'qty')); tr.appendChild(tdQ);
-    const tdP = makeTd('col-price'); tdP.appendChild(makeInput('number', 'item-input num', '0', item.price ?? 0, 'price')); tr.appendChild(tdP);
-    const tdT = makeTd('line-total-cell'); tdT.textContent = fmt((item.qty ?? 1) * (item.price ?? 0)); tr.appendChild(tdT);
-    const tdA = makeTd('col-actions'); const btnDel = document.createElement('button'); btnDel.type = 'button'; btnDel.className = 'remove-row-btn'; btnDel.innerHTML = '<i class="fas fa-trash"></i>'; btnDel.dataset.action = 'remove-row'; tdA.appendChild(btnDel); tr.appendChild(tdA);
+    
+    // ✅ FIX #7: Améliorer makeInput pour valider les montants
+    const makeInput = (type, cls, ph, val, field) => {
+      const inp = document.createElement('input');
+      inp.type = type;
+      inp.className = cls;
+      inp.placeholder = ph;
+      inp.value = val;
+      inp.dataset.field = field;
+      
+      if (type === 'number') {
+        inp.min = '0';
+        inp.step = '0.01';
+        
+        // ✅ FIX #7: Valider EN TEMPS RÉEL
+        inp.addEventListener('input', () => {
+          const v = parseFloat(inp.value);
+          if (v < 0) {
+            inp.value = '0';
+            toast('Les montants ne peuvent pas être négatifs', 'warning', 1000);
+          }
+          if (!Number.isFinite(v)) inp.value = '0';
+        });
+        
+        // ✅ Recalculer après changement
+        inp.addEventListener('change', () => {
+          recalculate();
+          scheduleSave();
+        });
+      }
+      
+      return inp;
+    };
+    
+    const tdDrag = makeTd('drag-handle'); 
+    tdDrag.innerHTML = '<i class="fas fa-grip-vertical"></i>'; 
+    tr.appendChild(tdDrag);
+    
+    const tdD = makeTd('col-designation'); 
+    const inpD = makeInput('text', 'item-input', 'Désignation', item.designation || '', 'designation'); 
+    tdD.appendChild(inpD); 
+    tr.appendChild(tdD);
+    
+    const tdQ = makeTd('col-qty'); 
+    tdQ.appendChild(makeInput('number', 'item-input num', '0', item.qty ?? 1, 'qty')); 
+    tr.appendChild(tdQ);
+    
+    const tdP = makeTd('col-price'); 
+    tdP.appendChild(makeInput('number', 'item-input num', '0', item.price ?? 0, 'price')); 
+    tr.appendChild(tdP);
+    
+    const tdT = makeTd('line-total-cell'); 
+    tdT.textContent = fmt((item.qty ?? 1) * (item.price ?? 0)); 
+    tr.appendChild(tdT);
+    
+    const tdA = makeTd('col-actions'); 
+    const btnDel = document.createElement('button'); 
+    btnDel.type = 'button'; 
+    btnDel.className = 'remove-row-btn'; 
+    btnDel.innerHTML = '<i class="fas fa-trash"></i>'; 
+    btnDel.dataset.action = 'remove-row'; 
+    tdA.appendChild(btnDel); 
+    tr.appendChild(tdA);
+    
     tr.draggable = true;
     tr.addEventListener('dragstart', onDragStart);
     tr.addEventListener('dragover', onDragOver);
     tr.addEventListener('drop', onDrop);
     tr.addEventListener('dragend', onDragEnd);
+    
     return tr;
   }
   
@@ -552,7 +639,21 @@
   /* ============================================================
      SAUVEGARDE BROUILLON
      ============================================================ */
-  function saveDraft() { localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(collectData())); }
+  function saveDraft() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(collectData()));
+      documentDirty = false;  // ✅ Marquer comme sauvegardé
+      checkStorageQuota();    // ✅ FIX #16: Vérifier le quota
+    } catch (e) {
+      if (e.name === 'QuotaExceededError') {
+        toast('❌ localStorage plein - Impossible de sauvegarder', 'error', 5000);
+        console.error('Storage quota exceeded:', e);
+      } else {
+        toast('❌ Erreur lors de la sauvegarde', 'error');
+        console.error('Save error:', e);
+      }
+    }
+  }
   
   function scheduleSave() {
     showAutosave('saving');
@@ -580,8 +681,25 @@
   
   function loadDraft() {
     const raw = localStorage.getItem(STORAGE_KEYS.draft);
-    if (!raw) { resetToNew(); return; }
-    try { applyData(JSON.parse(raw)); } catch { resetToNew(); }
+    if (!raw) {
+      resetToNew();
+      return;
+    }
+    
+    try {
+      const data = JSON.parse(raw);
+      
+      // ✅ FIX #12: Valider la structure du document
+      if (!data?.mode || !data?.client) {
+        throw new Error('Structure de brouillon invalide');
+      }
+      
+      applyData(data);
+    } catch (e) {
+      console.error('Erreur chargement brouillon:', e);
+      toast('⚠️ Brouillon corrompu - Un nouveau document a été créé', 'warning', 3000);
+      resetToNew();
+    }
   }
   
   function resetToNew(keepEmitter = true) {
@@ -668,32 +786,67 @@
     return after + tax;
   }
   
+  // ✅ FIX #18: Variable pour éviter les double-clics
+  let isArchiving = false;
+
   async function archiveDocument() {
-    const data = collectData();
-    data.savedAt = new Date().toISOString();
-    const hist = getHistory();
-    const dupIdx = hist.findIndex(it => it.docNumber === data.docNumber && it.mode === data.mode);
-    const isNew = dupIdx < 0;
-    if (isNew && state.currentUser && state.docCount >= DOC_LIMIT) {
-      const limitModal = $('#limitOverlay');
-      if (limitModal) limitModal.style.display = 'flex';
+    // ✅ FIX #18: Éviter les archivages simultanés
+    if (isArchiving) {
+      toast('Sauvegarde en cours…', 'info', 1000);
       return;
     }
-    if (isNew) state.docCount++;
-    if (dupIdx >= 0) hist[dupIdx] = data;
-    else hist.unshift(data);
-    saveHistory(hist);
-    populateClientDatalist();
-    updateCounterBadge();
-    if (state.currentUser) {
-      const result = await syncDocumentToSupabase(data, isNew);
-      if (!result.success && isNew) {
-        state.docCount--;
-        updateCounterBadge();
-        toast('Erreur de synchronisation', 'error');
+    
+    isArchiving = true;
+    const btn = $('#btnArchive');
+    const originalHTML = btn?.innerHTML;
+    
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde…';
+    }
+    
+    try {
+      const data = collectData();
+      data.savedAt = new Date().toISOString();
+      const hist = getHistory();
+      const dupIdx = hist.findIndex(it => it.docNumber === data.docNumber && it.mode === data.mode);
+      const isNew = dupIdx < 0;
+      
+      if (isNew && state.currentUser && state.docCount >= DOC_LIMIT) {
+        const limitModal = $('#limitOverlay');
+        if (limitModal) limitModal.style.display = 'flex';
+        toast('Limite de documents atteinte', 'error');
+        return;
+      }
+      
+      if (isNew) state.docCount++;
+      if (dupIdx >= 0) hist[dupIdx] = data;
+      else hist.unshift(data);
+      saveHistory(hist);
+      populateClientDatalist();
+      updateCounterBadge();
+      
+      if (state.currentUser) {
+        const result = await syncDocumentToSupabase(data, isNew);
+        if (!result.success && isNew) {
+          state.docCount--;
+          updateCounterBadge();
+          toast('Erreur de synchronisation', 'error');
+          return;
+        }
+      }
+      
+      toast('Document sauvegardé ✓', 'success');
+    } catch (e) {
+      console.error('Archive error:', e);
+      toast('❌ Erreur lors de la sauvegarde', 'error');
+    } finally {
+      isArchiving = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
       }
     }
-    toast('Document sauvegardé ✓', 'success');
   }
   
   function renderHistory() {
@@ -903,6 +1056,126 @@
   /* ============================================================
      MENU & SIDEBAR
      ============================================================ */
+  // ✅ FIX #11: Compresser les images avant sauvegarde
+  async function compressImage(dataUrl, maxWidth = 800, quality = 0.8) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ratio = Math.min(maxWidth / img.width, 1);
+          canvas.width = img.width * ratio;
+          canvas.height = img.height * ratio;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (e) {
+          resolve(dataUrl);  // Fallback
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  // ✅ FIX #16: Vérifier le quota localStorage
+  function getStorageSize() {
+    let total = 0;
+    for (let key in localStorage) {
+      if (localStorage.hasOwnProperty(key)) {
+        total += localStorage[key].length + key.length;
+      }
+    }
+    return total / 1024 / 1024;  // En MB
+  }
+
+  function checkStorageQuota() {
+    const sizeInMB = getStorageSize();
+    if (sizeInMB > 3) {
+      toast('⚠️ Stockage local presque plein ('+sizeInMB.toFixed(1)+'MB) - Nettoyez l\'historique', 'warning', 5000);
+    }
+  }
+
+  // ✅ FIX #14: Valider email
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  // ✅ FIX #10: Améliorer loadHistoryFromSupabase avec gestion d'erreur
+  async function loadHistoryFromSupabase() {
+    if (!state.currentUser) return;
+    
+    try {
+      const { data: rows, error } = await supabase
+        .from('documents')
+        .select('data, created_at, updated_at')
+        .eq('user_id', state.currentUser.id)
+        .order('updated_at', { ascending: false })
+        .limit(100);
+        
+      if (error) {
+        console.error('Erreur Supabase:', error);
+        toast('⚠️ Impossible de charger l\'historique depuis le serveur', 'warning', 3000);
+        return;
+      }
+      
+      if (!rows?.length) {
+        console.log('Aucun document dans Supabase');
+        return;
+      }
+      
+      // Merger avec l'historique local
+      const remoteHist = rows.map(r => ({
+        ...r.data,
+        savedAt: r.updated_at || r.created_at
+      }));
+      
+      const localHist = getHistory();
+      const merged = [...remoteHist];
+      
+      localHist.forEach(local => {
+        if (!merged.find(r => 
+          r.docNumber === local.docNumber && r.mode === local.mode)) {
+          merged.push(local);
+        }
+      });
+      
+      merged.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      saveHistory(merged);
+      
+    } catch (e) {
+      console.error('Erreur chargement historique:', e);
+      toast('❌ Erreur lors de la synchronisation', 'error');
+    }
+  }
+
+  // ✅ FIX #9: Détecter le mode online/offline
+  function bindOnlineDetection() {
+    window.addEventListener('offline', () => {
+      toast('🔌 Mode hors ligne — Les changements seront synchronisés plus tard', 'warning', 0);
+    });
+
+    window.addEventListener('online', async () => {
+      toast('✅ Connexion rétablie — synchronisation en cours…', 'info', 2000);
+      
+      if (state.currentUser) {
+        try {
+          await loadHistoryFromSupabase();
+          const data = collectData();
+          const result = await syncDocumentToSupabase(data, false);
+          if (result.success) {
+            toast('✔️ Synchronisé avec succès', 'success', 2000);
+          } else {
+            toast('⚠️ Erreur lors de la synchronisation', 'warning');
+          }
+        } catch (e) {
+          console.error('Sync error:', e);
+          toast('❌ Erreur lors de la synchronisation', 'error');
+        }
+      }
+    });
+  }
+
   function bindSideMenu() {
     const menu = $('#sideMenu');
     const btn = $('#btnMainMenu');
@@ -1099,17 +1372,27 @@
     const logoUpload = $('#logoUpload');
     if (logoPlaceholder) logoPlaceholder.addEventListener('click', () => logoUpload?.click());
     if (logoUpload) {
-      logoUpload.addEventListener('change', e => {
+      logoUpload.addEventListener('change', async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        
         const reader = new FileReader();
-        reader.onload = ev => {
-          state.logoDataURL = ev.target.result;
-          saveDraft();
-          const lp = $('#logoPreview');
-          const lph = $('#logoPlaceholder');
-          if (lp) { lp.src = ev.target.result; lp.style.display = 'block'; }
-          if (lph) lph.style.display = 'none';
+        reader.onload = async (ev) => {
+          try {
+            // ✅ FIX #11: Compresser l'image avant sauvegarde
+            state.logoDataURL = await compressImage(ev.target.result, 400, 0.85);
+            saveDraft();  // Sauvegarde IMMÉDIATE
+            
+            const lp = $('#logoPreview');
+            const lph = $('#logoPlaceholder');
+            if (lp) { lp.src = state.logoDataURL; lp.style.display = 'block'; }
+            if (lph) lph.style.display = 'none';
+          } catch (e) {
+            console.error('Compression error:', e);
+            // Fallback sans compression
+            state.logoDataURL = ev.target.result;
+            saveDraft();
+          }
         };
         reader.readAsDataURL(file);
       });
@@ -1119,19 +1402,29 @@
     const sigImgUpload = $('#sigImgUpload');
     if (sigUploadZone) sigUploadZone.addEventListener('click', () => { if (!$('#sigImgPreview')?.src || $('#sigImgPreview')?.style.display === 'none') sigImgUpload?.click(); });
     if (sigImgUpload) {
-      sigImgUpload.addEventListener('change', e => {
+      sigImgUpload.addEventListener('change', async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        
         const reader = new FileReader();
-        reader.onload = ev => {
-          state.sigImgDataURL = ev.target.result;
-          saveDraft();
-          const sp = $('#sigImgPreview');
-          const sph = $('#sigUploadHint');
-          const scb = $('#btnClearSig');
-          if (sp) { sp.src = ev.target.result; sp.style.display = 'block'; }
-          if (sph) sph.style.display = 'none';
-          if (scb) scb.style.display = 'flex';
+        reader.onload = async (ev) => {
+          try {
+            // ✅ FIX #11: Compresser la signature avant sauvegarde
+            state.sigImgDataURL = await compressImage(ev.target.result, 300, 0.8);
+            saveDraft();  // Sauvegarde IMMÉDIATE
+            
+            const sp = $('#sigImgPreview');
+            const sph = $('#sigUploadHint');
+            const scb = $('#btnClearSig');
+            if (sp) { sp.src = state.sigImgDataURL; sp.style.display = 'block'; }
+            if (sph) sph.style.display = 'none';
+            if (scb) scb.style.display = 'flex';
+          } catch (e) {
+            console.error('Compression error:', e);
+            // Fallback sans compression
+            state.sigImgDataURL = ev.target.result;
+            saveDraft();
+          }
         };
         reader.readAsDataURL(file);
       });
@@ -1154,6 +1447,17 @@
     const currentDateSpan = $('#currentDate');
     if (currentDateSpan) currentDateSpan.textContent = new Date().toLocaleDateString('fr-FR');
     
+    // ✅ FIX #14: Valider email au blur
+    $('#clientEmail')?.addEventListener('blur', () => {
+      const email = $('#clientEmail')?.value?.trim();
+      if (email && !isValidEmail(email)) {
+        toast('❌ Format email invalide', 'warning', 1500);
+        $('#clientEmail')?.classList.add('error');
+      } else if ($('#clientEmail')) {
+        $('#clientEmail').classList.remove('error');
+      }
+    });
+
     document.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); archiveDocument(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
@@ -1336,12 +1640,46 @@
   
   async function loadDocCountFromSupabase() {
     if (!state.currentUser) return;
+    
     try {
-      const { count, error } = await supabase.from('documents').select('*', { count: 'exact', head: true }).eq('user_id', state.currentUser.id);
-      if (error) return;
+      // Essayer d'abord Supabase
+      const { count, error } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', state.currentUser.id);
+      
+      if (error) {
+        // Fallback sur localStorage
+        const stored = localStorage.getItem(`pg_doccount.${state.currentUser.id}`);
+        if (stored) {
+          try {
+            const { count: localCount } = JSON.parse(stored);
+            state.docCount = localCount || 0;
+            updateCounterBadge();
+            console.log('Compteur chargé depuis localStorage:', state.docCount);
+          } catch (e) {
+            state.docCount = 0;
+          }
+        }
+        return;
+      }
+      
       state.docCount = count || 0;
       updateCounterBadge();
-    } catch (e) {}
+    } catch (e) {
+      // Double fallback localStorage
+      const stored = localStorage.getItem(`pg_doccount.${state.currentUser.id}`);
+      if (stored) {
+        try {
+          const { count: localCount } = JSON.parse(stored);
+          state.docCount = localCount || 0;
+          updateCounterBadge();
+        } catch (pe) {
+          state.docCount = 0;
+        }
+      }
+      console.error('Erreur chargement compteur:', e);
+    }
   }
   
   async function loadHistoryFromSupabase() {
@@ -1434,6 +1772,7 @@
     bindAuthEvents();
     bindProfileEvents();
     bindSideMenu();
+    bindOnlineDetection();  // ✅ FIX #9: Ajouter la détection offline
     
     try {
       supabase.auth.onAuthStateChange((_event, session) => onAuthStateChange(session));
