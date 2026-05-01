@@ -308,28 +308,7 @@
                     </select>
                   </div>
 
-                  <!-- QR Code paiement -->
-                  <div class="qr-section" id="qrSection">
-                    <div class="qr-toggle-row">
-                      <label class="qr-toggle-label">
-                        <input type="checkbox" id="qrEnabled">
-                        <span><i class="fas fa-qrcode"></i> QR Code paiement Mobile Money</span>
-                      </label>
-                    </div>
-                    <div class="qr-config" id="qrConfig" style="display:none">
-                      <select id="qrProvider" class="form-input" style="max-width:130px;font-size:0.82rem;padding:0.35rem 0.6rem">
-                        <option value="momo">MTN MOMO</option>
-                        <option value="wave">Wave</option>
-                        <option value="airtel">Airtel Money</option>
-                        <option value="moov">Moov Money</option>
-                      </select>
-                      <input type="tel" id="qrPhone" class="form-input" placeholder="Numéro de paiement" style="max-width:180px;font-size:0.82rem;padding:0.35rem 0.6rem">
-                      <button type="button" class="btn-gen-qr" id="btnGenQr"><i class="fas fa-qrcode"></i> Générer</button>
-                    </div>
-                    <div id="qrCodeDisplay" class="qr-code-display"></div>
-                  </div>
-                </div>
-                <div class="totals-right">
+                  S    <div class="totals-right">
                   <table class="totals-table">
                     <tbody>
                       <tr>
@@ -619,6 +598,10 @@
       <i class="fas fa-users"></i>
       <span>Clients</span>
     </button>
+  <button type="button" class="mbn-item" data-view="companyProfile">
+    <i class="fas fa-building"></i>
+    <span>Profil</span>
+  </button>
     <button type="button" class="mbn-item" id="mbnPdf">
       <i class="fas fa-file-pdf"></i>
       <span>PDF</span>
