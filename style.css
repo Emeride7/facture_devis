@@ -2616,8 +2616,216 @@ tr.dragging { opacity: 0.4; }
 }
 
 /* ============================================================
-   IMPRESSION
+   CORRECTIONS MOBILES V3.0
    ============================================================ */
+
+/* D1 — Bouton Enregistrer toujours visible sur mobile */
+@media (max-width: 1024px) {
+  .settings-actions {
+    position: sticky;
+    bottom: calc(var(--mobile-nav-h) + 0.5rem);
+    background: white;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+    z-index: 10;
+    margin-top: 0.5rem;
+  }
+  .btn-settings-save {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* D2 — Tableau des prestations en cards sur mobile */
+@media (max-width: 1024px) {
+  .table-container { overflow-x: visible; }
+  .items-table, .items-table thead, .items-table tbody,
+  .items-table tr, .items-table td, .items-table th { display: block; width: 100%; }
+
+  .items-table thead { display: none; }
+
+  .items-table tbody tr {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 0.7rem;
+    padding: 0.6rem;
+    box-shadow: var(--shadow-card);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 0.4rem 0.6rem;
+    align-items: center;
+  }
+
+  .items-table tbody tr td.drag-handle {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+  }
+
+  .items-table tbody tr td.col-designation {
+    grid-column: 2;
+    grid-row: 1;
+    border: none;
+    padding: 0;
+  }
+  .items-table tbody tr td.col-designation input {
+    width: 100%;
+    font-weight: 600;
+  }
+
+  .items-table tbody tr td.col-actions {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    width: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+  }
+
+  /* Row 2: qty / price / total inline */
+  .items-table tbody tr td.col-qty,
+  .items-table tbody tr td.col-price,
+  .items-table tbody tr td.line-total-cell {
+    grid-column: 2;
+    grid-row: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: none;
+    width: auto;
+  }
+  /* Stack them horizontally in a wrapper */
+  .items-table tbody tr {
+    position: relative;
+  }
+  .items-table tbody tr td.col-qty::before  { content: 'Qté: '; font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
+  .items-table tbody tr td.col-price::before { content: 'PU: '; font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
+  .items-table tbody tr td.line-total-cell::before { content: '= '; font-size: 0.7rem; color: var(--text-light); }
+
+  /* Put qty/price/total in a flex row on the 2nd grid row */
+  .items-table tbody tr td.col-qty { grid-column: 2; grid-row: 2; }
+  /* Override grid to use sub-grid via display flex trick */
+  .items-table tbody tr {
+    grid-template-columns: 28px 1fr auto;
+  }
+  /* Wrap qty+price+total in grid row 2 using a flex container trick */
+  .items-table tbody tr td.col-qty,
+  .items-table tbody tr td.col-price,
+  .items-table tbody tr td.line-total-cell {
+    grid-row: 2;
+    grid-column: 2;
+  }
+  .items-table tbody tr td.col-qty { justify-self: start; }
+  .items-table tbody tr td.col-price { justify-self: center; }
+  .items-table tbody tr td.line-total-cell { justify-self: end; font-weight: 700; color: var(--primary); }
+
+  /* Force all 3 into same row via layout */
+  .items-table tbody tr {
+    grid-template-rows: auto auto;
+  }
+  /* Use a separate approach: redefine the grid to accommodate 3 cols in row 2 */
+  .items-table tbody tr {
+    grid-template-columns: 28px 1fr 1fr 1fr auto;
+    grid-template-rows: auto auto;
+  }
+  .items-table tbody tr td.drag-handle { grid-column: 1; grid-row: 1 / 3; }
+  .items-table tbody tr td.col-designation { grid-column: 2 / 5; grid-row: 1; }
+  .items-table tbody tr td.col-qty   { grid-column: 2; grid-row: 2; }
+  .items-table tbody tr td.col-price { grid-column: 3; grid-row: 2; }
+  .items-table tbody tr td.line-total-cell { grid-column: 4; grid-row: 2; }
+  .items-table tbody tr td.col-actions { grid-column: 5; grid-row: 1 / 3; }
+
+  .items-table tbody tr td.col-qty input,
+  .items-table tbody tr td.col-price input {
+    width: 100%;
+    max-width: 80px;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+  }
+  .items-table tbody tr td { border: none !important; padding: 0.1rem 0 !important; }
+  .items-table tbody tr:hover td { background: transparent; }
+  .items-table { min-width: unset !important; }
+}
+
+/* D3 — Barre de navigation mobile auto-masquage */
+.mobile-bottom-nav {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mobile-bottom-nav.nav-hidden {
+  transform: translateY(100%);
+}
+
+/* D4 — Sélecteur de type dans la nav mobile */
+.mbn-type-selector {
+  display: none;
+}
+@media (max-width: 1024px) {
+  .mbn-type-selector {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.58rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 10px;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .mbn-type-selector i { font-size: 1.1rem; }
+  .mbn-type-selector.active { color: var(--primary); background: var(--accent); }
+
+  .mbn-type-dropdown {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+    min-width: 130px;
+    z-index: 400;
+  }
+  .mbn-type-dropdown.open { display: flex; }
+  .mbn-type-option {
+    background: transparent;
+    border: none;
+    padding: 0.6rem 1rem;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+  }
+  .mbn-type-option:hover { background: var(--accent); }
+  .mbn-type-option.active { color: var(--primary); background: var(--accent); }
+}
+
 @media print {
   .sidebar, .topbar, .mobile-bottom-nav,
   .doc-status-bar, .btn-add-row, .remove-row-btn,

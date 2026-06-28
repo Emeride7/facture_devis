@@ -338,6 +338,7 @@
       };
       saveSettings(state.settings);
       applySettingsToEditor();
+      renderDashboard();
       toast('Informations enregistrées', 'success');
     });
   }
@@ -589,6 +590,15 @@
     const vc = $('#validityContainer');
     if (vc) vc.style.display = hasValidity ? '' : 'none';
 
+    // Sync mobile type dropdown
+    $$('.mbn-type-option').forEach(b => {
+      b.classList[b.dataset.mode === mode ? 'add' : 'remove']('active');
+    });
+    const mbnLbl = $('#mbnTypeLabel');
+    if (mbnLbl) mbnLbl.textContent = label === 'PRO FORMA' ? 'Pro Forma' : label.charAt(0) + label.slice(1).toLowerCase();
+    const mbnTs = $('#mbnTypeSelector');
+    if (mbnTs) mbnTs.classList[mode !== 'devis' ? 'add' : 'remove']('active');
+
     updateBreadcrumb();
   }
 
@@ -637,7 +647,52 @@
     $$('.mbn-item[data-view]').forEach(btn => {
       btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
-    $('#mbnPdf')?.addEventListener('click', exportPDF);
+
+    // D4 — Sélecteur de type mobile
+    const mbnTypeSelector = $('#mbnTypeSelector');
+    const mbnTypeDropdown = $('#mbnTypeDropdown');
+    if (mbnTypeSelector && mbnTypeDropdown) {
+      mbnTypeSelector.addEventListener('click', (e) => {
+        e.stopPropagation();
+        mbnTypeDropdown.classList.toggle('open');
+      });
+      document.addEventListener('click', () => mbnTypeDropdown.classList.remove('open'));
+      $$('.mbn-type-option').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setMode(btn.dataset.mode);
+          switchView('editor');
+          mbnTypeDropdown.classList.remove('open');
+          $$('.mbn-type-option').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const mbnTypeLabel = $('#mbnTypeLabel');
+          if (mbnTypeLabel) mbnTypeLabel.textContent = btn.textContent.trim().split(' ').slice(1).join(' ') || btn.textContent.trim();
+        });
+      });
+    }
+
+    // D3 — Barre nav mobile auto-masquage au scroll
+    (function setupNavAutoHide() {
+      const nav = $('#mobileBottomNav');
+      const scroll = document.querySelector('.page-scroll');
+      if (!nav || !scroll) return;
+      let lastY = scroll.scrollTop;
+      let ticking = false;
+      scroll.addEventListener('scroll', () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          const currentY = scroll.scrollTop;
+          if (currentY > lastY + 4) {
+            nav.classList.add('nav-hidden');
+          } else if (currentY < lastY - 4) {
+            nav.classList.remove('nav-hidden');
+          }
+          lastY = currentY;
+          ticking = false;
+        });
+      }, { passive: true });
+    })();
   }
 
   function switchView(view) {
@@ -653,6 +708,10 @@
 
     $$('.mbn-item').forEach(b => b.classList.remove('active'));
     $$('.mbn-item[data-view="' + view + '"]').forEach(b => b.classList.add('active'));
+
+    // Afficher les boutons Sauvegarder/PDF uniquement sur l'éditeur
+    const topbarActions = $('#btnArchive')?.closest('.topbar-actions');
+    if (topbarActions) topbarActions.style.display = (view === 'editor') ? '' : 'none';
 
     if (view === 'history') renderHistory();
     if (view === 'clients') { renderClientsView(); populateClientDatalist(); }
@@ -1337,6 +1396,7 @@
       const GRAY_LT = [160, 170, 190];
       const GRAY_BG = [245, 247, 250];
       const WHITE = [255, 255, 255];
+      const BLACK = [20, 20, 30];
 
       let y = 12;
 
@@ -1641,7 +1701,10 @@
     const hist = getHistory();
     const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const greeting = $('#dashboardGreetingName');
-    if (greeting) greeting.textContent = state.currentUser?.email?.split('@')[0] || 'Utilisateur';
+    const s_gr = state.settings || {};
+    const greetName = [s_gr.managerName, s_gr.managerFirstname].filter(Boolean).join(' ').trim()
+      || state.currentUser?.email?.split('@')[0] || 'Utilisateur';
+    if (greeting) greeting.textContent = greetName;
     const label = $('#dashboardTodayLabel');
     if (label) label.textContent = `Aujourd'hui, ${today}, gardez une lecture immédiate de votre activité.`;
 

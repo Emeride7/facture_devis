@@ -680,7 +680,14 @@
     <button type="button" class="mbn-item" data-view="dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
     <button type="button" class="mbn-item active" data-view="editor"><i class="fas fa-plus-circle"></i><span>Nouveau</span></button>
     <button type="button" class="mbn-item" data-view="history"><i class="fas fa-history"></i><span>Historique</span></button>
-    <button type="button" class="mbn-item" id="mbnPdf"><i class="fas fa-file-pdf"></i><span>PDF</span></button>
+    <button type="button" class="mbn-type-selector" id="mbnTypeSelector">
+      <i class="fas fa-file-alt"></i><span id="mbnTypeLabel">Type</span>
+      <div class="mbn-type-dropdown" id="mbnTypeDropdown">
+        <button type="button" class="mbn-type-option active" data-mode="devis"><i class="fas fa-file-alt"></i> Devis</button>
+        <button type="button" class="mbn-type-option" data-mode="facture"><i class="fas fa-file-invoice-dollar"></i> Facture</button>
+        <button type="button" class="mbn-type-option" data-mode="proforma"><i class="fas fa-file-invoice"></i> Pro Forma</button>
+      </div>
+    </button>
     <button type="button" class="mbn-item" data-view="settings"><i class="fas fa-building"></i><span>Entreprise</span></button>
   </nav>
 
