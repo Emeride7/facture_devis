@@ -590,14 +590,18 @@
     const vc = $('#validityContainer');
     if (vc) vc.style.display = hasValidity ? '' : 'none';
 
-    // Sync mobile type dropdown
-    $$('.mbn-type-option').forEach(b => {
+    // Sync mobile type popup button + options
+    $$('.mbn-type-popup-option').forEach(b => {
       b.classList[b.dataset.mode === mode ? 'add' : 'remove']('active');
     });
     const mbnLbl = $('#mbnTypeLabel');
-    if (mbnLbl) mbnLbl.textContent = label === 'PRO FORMA' ? 'Pro Forma' : label.charAt(0) + label.slice(1).toLowerCase();
-    const mbnTs = $('#mbnTypeSelector');
-    if (mbnTs) mbnTs.classList[mode !== 'devis' ? 'add' : 'remove']('active');
+    const modeDisplayName = label === 'PRO FORMA' ? 'Pro Forma' : label.charAt(0) + label.slice(1).toLowerCase();
+    if (mbnLbl) mbnLbl.textContent = modeDisplayName;
+    const mbnTypeIcon = $('#mbnTypeIcon');
+    const iconMap = { devis: 'fa-file-alt', facture: 'fa-file-invoice-dollar', proforma: 'fa-file-invoice' };
+    if (mbnTypeIcon) { mbnTypeIcon.className = 'fas ' + (iconMap[mode] || 'fa-file-alt'); }
+    const mbnTypeBtn2 = $('#mbnTypeBtn');
+    if (mbnTypeBtn2) mbnTypeBtn2.classList[mode !== 'devis' ? 'add' : 'remove']('type-active');
 
     updateBreadcrumb();
   }
@@ -648,28 +652,36 @@
       btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
 
-    // D4 — Sélecteur de type mobile
-    const mbnTypeSelector = $('#mbnTypeSelector');
-    const mbnTypeDropdown = $('#mbnTypeDropdown');
-    if (mbnTypeSelector && mbnTypeDropdown) {
-      mbnTypeSelector.addEventListener('click', (e) => {
-        e.stopPropagation();
-        mbnTypeDropdown.classList.toggle('open');
-      });
-      document.addEventListener('click', () => mbnTypeDropdown.classList.remove('open'));
-      $$('.mbn-type-option').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          setMode(btn.dataset.mode);
-          switchView('editor');
-          mbnTypeDropdown.classList.remove('open');
-          $$('.mbn-type-option').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          const mbnTypeLabel = $('#mbnTypeLabel');
-          if (mbnTypeLabel) mbnTypeLabel.textContent = btn.textContent.trim().split(' ').slice(1).join(' ') || btn.textContent.trim();
-        });
-      });
+    // D4 — Bouton Type → popup mobile
+    const mbnTypeBtn = $('#mbnTypeBtn');
+    const mbnTypePopup = $('#mbnTypePopup');
+    const mbnTypeBackdrop = $('#mbnTypeBackdrop');
+
+    function openTypePopup() {
+      if (!mbnTypePopup || !mbnTypeBackdrop) return;
+      mbnTypePopup.classList.add('open');
+      mbnTypeBackdrop.classList.add('open');
     }
+    function closeTypePopup() {
+      if (!mbnTypePopup || !mbnTypeBackdrop) return;
+      mbnTypePopup.classList.remove('open');
+      mbnTypeBackdrop.classList.remove('open');
+    }
+
+    mbnTypeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mbnTypePopup?.classList.contains('open') ? closeTypePopup() : openTypePopup();
+    });
+    mbnTypeBackdrop?.addEventListener('click', closeTypePopup);
+
+    $$('.mbn-type-popup-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        setMode(mode);
+        switchView('editor');
+        closeTypePopup();
+      });
+    });
 
     // D3 — Barre nav mobile auto-masquage au scroll
     (function setupNavAutoHide() {
@@ -1432,7 +1444,7 @@
         if (line) { doc.text(line, rightX, cy, { align: 'right' }); cy += 4; }
       });
 
-      y = Math.max(y + 20, cy + 2);
+      y = Math.max(y + 20, cy + 2) + 10;
 
       // === TITRE ===
       SF('bold', 26);
