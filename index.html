@@ -680,16 +680,24 @@
     <button type="button" class="mbn-item" data-view="dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
     <button type="button" class="mbn-item active" data-view="editor"><i class="fas fa-plus-circle"></i><span>Nouveau</span></button>
     <button type="button" class="mbn-item" data-view="history"><i class="fas fa-history"></i><span>Historique</span></button>
-    <button type="button" class="mbn-type-selector" id="mbnTypeSelector">
-      <i class="fas fa-file-alt"></i><span id="mbnTypeLabel">Type</span>
-      <div class="mbn-type-dropdown" id="mbnTypeDropdown">
-        <button type="button" class="mbn-type-option active" data-mode="devis"><i class="fas fa-file-alt"></i> Devis</button>
-        <button type="button" class="mbn-type-option" data-mode="facture"><i class="fas fa-file-invoice-dollar"></i> Facture</button>
-        <button type="button" class="mbn-type-option" data-mode="proforma"><i class="fas fa-file-invoice"></i> Pro Forma</button>
-      </div>
-    </button>
+    <button type="button" class="mbn-item" id="mbnTypeBtn"><i class="fas fa-file-alt" id="mbnTypeIcon"></i><span id="mbnTypeLabel">Devis</span></button>
     <button type="button" class="mbn-item" data-view="settings"><i class="fas fa-building"></i><span>Entreprise</span></button>
   </nav>
+
+  <!-- TYPE POPUP MOBILE -->
+  <div class="mbn-type-backdrop" id="mbnTypeBackdrop"></div>
+  <div class="mbn-type-popup" id="mbnTypePopup">
+    <div class="mbn-type-popup-title">Type de document</div>
+    <button type="button" class="mbn-type-popup-option active" data-mode="devis">
+      <i class="fas fa-file-alt"></i><span>Devis</span>
+    </button>
+    <button type="button" class="mbn-type-popup-option" data-mode="facture">
+      <i class="fas fa-file-invoice-dollar"></i><span>Facture</span>
+    </button>
+    <button type="button" class="mbn-type-popup-option" data-mode="proforma">
+      <i class="fas fa-file-invoice"></i><span>Pro Forma</span>
+    </button>
+  </div>
 
   <!-- MODALS -->
   <div class="modal-overlay" id="clientPickerModal" role="dialog" aria-label="Choisir un client">
