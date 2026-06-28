@@ -1101,7 +1101,7 @@
     const body = $('#itemsBody');
     if (body) { body.innerHTML = ''; addRow(); }
 
-    setMode('devis');
+    setMode(state.mode || 'devis');
     setStatus('draft');
     recalculate();
     saveDraft();
@@ -1318,329 +1318,315 @@
 
     try {
       const { jsPDF } = window.jspdf;
-      const doc  = new jsPDF({ unit: 'mm', format: 'a4' });
-      const pw = 210, ml = 14, mr = 14, cw = pw - ml - mr;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pw = 210, ml = 15, mr = 15, cw = pw - ml - mr;
       const curr = state.settings?.defaultCurrency || 'CFA';
       const mode = MODES[state.mode] || MODES.devis;
       const s = state.settings || {};
+      const status = STATUS_LABELS[state.docStatus] || STATUS_LABELS.draft;
 
-      // Couleurs premium
-      const C = {
-        primary: [26, 58, 107],
-        primaryLight: [42, 82, 152],
-        secondary: [59, 130, 246],
-        accent: [235, 241, 255],
-        rowAlt: [249, 251, 255],
-        line: [210, 220, 240],
-        textDk: [22, 34, 60],
-        textMd: [80, 95, 130],
-        textLt: [140, 155, 185],
-        white: [255, 255, 255],
-        green: [21, 128, 61],
-        red: [185, 28, 28],
-        gold: [212, 175, 55]
-      };
+      const SF = (style, size) => { doc.setFont('helvetica', style); doc.setFontSize(size); };
+      const SC = (r, g, b) => doc.setTextColor(r, g, b);
+      const FC = (r, g, b) => doc.setFillColor(r, g, b);
+      const DC = (r, g, b, lw) => { doc.setDrawColor(r, g, b); doc.setLineWidth(lw || 0.3); };
 
-      const setFont  = (style = 'normal', size = 9) => { doc.setFont('helvetica', style); doc.setFontSize(size); };
-      const setColor = (rgb) => doc.setTextColor(...rgb);
-      const setFill  = (rgb) => doc.setFillColor(...rgb);
-      const setDraw  = (rgb, lw = 0.3) => { doc.setDrawColor(...rgb); doc.setLineWidth(lw); };
+      const BLUE = [26, 58, 107];
+      const BLUE_LT = [59, 130, 246];
+      const GRAY_DK = [30, 30, 40];
+      const GRAY_MD = [100, 110, 130];
+      const GRAY_LT = [160, 170, 190];
+      const GRAY_BG = [245, 247, 250];
+      const WHITE = [255, 255, 255];
 
-      // === HEADER PREMIUM ===
-      const headerH = 48;
-      setFill(C.primary);
-      doc.rect(0, 0, pw, headerH, 'F');
-      
-      // Bande décorative
-      setFill(C.secondary);
-      doc.rect(0, headerH - 4, pw, 4, 'F');
-      
-      // Logo
-      let logoX = ml;
+      let y = 12;
+
+      // === EN-TETE : Logo + coordonnees ===
+      let logoW = 0;
       if (state.logoDataURL) {
         try {
           const imgFmt = state.logoDataURL.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-          const lSize = 32;
-          const lY = (headerH - lSize) / 2;
-          setFill(C.white);
-          doc.roundedRect(ml, lY, lSize, lSize, 4, 4, 'F');
-          doc.addImage(state.logoDataURL, imgFmt, ml + 2, lY + 2, lSize - 4, lSize - 4, undefined, 'FAST');
-          logoX = ml + lSize + 8;
+          doc.addImage(state.logoDataURL, imgFmt, ml, y, 16, 16, undefined, 'FAST');
+          logoW = 22;
         } catch (_) {}
       }
 
-      // Nom entreprise
-      setColor(C.white);
-      setFont('bold', 16);
-      const companyName = s.companyName || $('#emitterName')?.value || 'Votre entreprise';
-      doc.text(companyName, logoX, 18);
+      SF('bold', 13);
+      SC(...BLUE);
+      const cName = s.companyName || $('#emitterName')?.value || 'Votre entreprise';
+      doc.text(cName, ml + logoW, y + 6);
 
-      // Infos entreprise
-      setFont('normal', 8);
-      setColor([200, 215, 245]);
-      let infoY = 24;
-      const infoLines = [
-        s.address || '',
-        [s.city, s.country].filter(Boolean).join(' '),
-        [s.phone, s.email].filter(Boolean).join('  |  '),
-        s.website || ''
+      SF('normal', 7.5);
+      SC(...GRAY_MD);
+      const cSubtitle = s.managerName ? `${s.managerName} ${s.managerFirstname || ''}`.trim() : '';
+      if (cSubtitle) doc.text(cSubtitle, ml + logoW, y + 11);
+
+      const rightX = pw - mr;
+      const coords = [
+        s.phone ? `Tel. ${s.phone}` : '',
+        s.email ? s.email : '',
+        s.website ? s.website : '',
+        [s.address, s.city, s.country].filter(Boolean).join(', ') || ''
       ].filter(Boolean);
-      infoLines.forEach(line => {
-        doc.text(line, logoX, infoY);
-        infoY += 4.5;
+      let cy = y;
+      coords.forEach(line => {
+        if (line) { doc.text(line, rightX, cy, { align: 'right' }); cy += 4; }
       });
 
-      // Type de document
-      setFont('bold', 22);
-      setColor(C.white);
-      doc.text(mode.label, pw - mr, 22, { align: 'right' });
-      
-      setDraw([255, 255, 255], 0.3);
-      doc.line(pw - mr - 60, 26, pw - mr, 26);
-      
-      // Numéro et dates
-      setFont('normal', 8.5);
-      setColor([200, 215, 245]);
-      doc.text(`N°  ${$('#docNumber')?.value || '—'}`, pw - mr, 32, { align: 'right' });
-      doc.text(`Date :  ${localDate($('#docDate')?.value)}`, pw - mr, 37, { align: 'right' });
+      y = Math.max(y + 20, cy + 2);
+
+      // === TITRE ===
+      SF('bold', 26);
+      SC(...GRAY_DK);
+      doc.text(mode.label, ml, y);
+
+      DC(...BLUE_LT, 1.2);
+      doc.line(ml, y + 3, ml + 28, y + 3);
+
+      // Date box a droite
+      const dateBoxW = 52;
+      const dateBoxX = rightX - dateBoxW;
+      FC(...GRAY_BG);
+      DC(...GRAY_LT, 0.3);
+      doc.roundedRect(dateBoxX, y - 12, dateBoxW, 16, 3, 3, 'FD');
+      SF('bold', 6.5);
+      SC(...GRAY_MD);
+      doc.text('DATE DE CREATION', dateBoxX + 5, y - 6);
+      SF('bold', 8);
+      SC(...BLUE);
+      doc.text(localDate($('#docDate')?.value) || new Date().toLocaleDateString('fr-FR'), dateBoxX + 5, y - 1);
       if (mode.hasValidity && $('#docValidity')?.value) {
-        doc.text(`Valide jusqu'au :  ${localDate($('#docValidity').value)}`, pw - mr, 42, { align: 'right' });
+        const dl = daysUntil($('#docValidity').value);
+        SF('normal', 6.5);
+        SC(...GRAY_LT);
+        doc.text(`Valide ${dl !== null ? dl + ' jours' : ''}`, dateBoxX + 5, y + 3.5);
       }
 
-      // === CLIENT CARD ===
-      let y = headerH + 8;
-      const clientName = $('#clientName')?.value || 'Client non renseigné';
-      const clientLines = [
-        $('#clientAddress')?.value,
-        $('#clientExtra')?.value,
-        [$('#clientTel')?.value, $('#clientEmail')?.value].filter(Boolean).join('  |  '),
-        $('#clientSiret')?.value ? `IFU / RCCM : ${$('#clientSiret').value}` : null
-      ].filter(Boolean);
-      
-      const cardH = Math.max(22, 14 + clientLines.length * 5 + 6);
-      setFill(C.accent);
-      setDraw(C.line, 0.3);
-      doc.roundedRect(ml, y, cw, cardH, 4, 4, 'FD');
-      
-      // Badge "FACTURÉ À"
-      setFill(C.primary);
-      doc.roundedRect(ml, y, 18, cardH, 4, 4, 'F');
-      doc.rect(ml + 12, y, 6, cardH, 'F');
-      setColor(C.white);
-      setFont('bold', 6);
-      doc.text('FACTURÉ À', ml + 9, y + cardH/2 + 2, { angle: 90, align: 'center' });
-      
-      const cx = ml + 24;
-      setColor(C.textDk);
-      setFont('bold', 11);
-      doc.text(clientName, cx, y + 10);
-      setFont('normal', 8.5);
-      setColor(C.textMd);
-      let cy2 = y + 17;
-      clientLines.forEach(line => { if (line) { doc.text(line, cx, cy2); cy2 += 5; } });
-      
-      y += cardH + 8;
+      y += 10;
 
-      // === TABLEAU DES PRESTATIONS ===
+      // Numero + badge statut
+      SF('normal', 8.5);
+      SC(...GRAY_MD);
+      doc.text(`N° ${$('#docNumber')?.value || '—'}`, ml, y);
+
+      const statColors = {
+        draft:    [160, 170, 190],
+        sent:     [59, 130, 246],
+        accepted: [21, 128, 61],
+        invoiced: [8, 145, 178],
+        refused:  [185, 28, 28],
+        expired:  [245, 158, 11]
+      };
+      const stCol = statColors[state.docStatus] || statColors.draft;
+      const statLabel = status.label.toUpperCase();
+      const statW = doc.getTextWidth(statLabel) + 10;
+      const statX = ml + 38;
+      FC(...stCol);
+      doc.roundedRect(statX, y - 4, statW, 8, 4, 4, 'F');
+      SF('bold', 6.5);
+      SC(...WHITE);
+      doc.text(statLabel, statX + statW / 2, y + 1.5, { align: 'center' });
+
+      y += 5;
+      DC(...GRAY_LT, 0.3);
+      doc.line(ml, y, rightX, y);
+      y += 8;
+
+      // === CLIENT ===
+      SF('bold', 7);
+      SC(...BLUE);
+      doc.text('CLIENT', ml, y);
+      y += 4;
+
+      const cardH = 26;
+      FC(...WHITE);
+      DC(...GRAY_LT, 0.3);
+      doc.roundedRect(ml, y, cw, cardH, 4, 4, 'FD');
+
+      const c1 = ml + 6, c2 = ml + cw * 0.36, c3 = ml + cw * 0.68;
+      const cliItems = [
+        { l: 'SOCIETE',          v: $('#clientName')?.value || 'Client non renseigne', x: c1,  y: y + 6 },
+        { l: 'CONTACT',          v: $('#clientTel')?.value || '',                     x: c2,  y: y + 6 },
+        { l: 'EMAIL',            v: $('#clientEmail')?.value || '',                   x: c3,  y: y + 6 },
+        { l: 'TELEPHONE',        v: $('#clientTel')?.value || '',                     x: c1,  y: y + 16 },
+        { l: 'ADRESSE',          v: [$('#clientAddress')?.value, $('#clientExtra')?.value].filter(Boolean).join(', ') || '', x: c2, y: y + 16 },
+      ];
+      cliItems.forEach(it => {
+        if (!it.v) return;
+        SF('normal', 6);
+        SC(...GRAY_LT);
+        doc.text(it.l, it.x, it.y);
+        SF('bold', 7.5);
+        SC(...GRAY_DK);
+        doc.text(it.v, it.x, it.y + 3.5);
+      });
+      y += cardH + 10;
+
+      // === PRESTATIONS ===
+      SF('bold', 7);
+      SC(...BLUE);
+      doc.text('PRESTATIONS', ml, y);
+      y += 4;
+
       const tableRows = [];
       for (const tr of body.rows) {
-        const q   = num(tr.querySelector('[data-field="qty"]')?.value);
-        const p   = num(tr.querySelector('[data-field="price"]')?.value);
+        const q = num(tr.querySelector('[data-field="qty"]')?.value);
+        const p = num(tr.querySelector('[data-field="price"]')?.value);
         const des = tr.querySelector('[data-field="designation"]')?.value || '';
-        tableRows.push([des, String(q), fmt(p), fmt(q * p)]);
+        const parts = des.split('\n');
+        const main = parts[0] || '';
+        const sub = parts[1] || '';
+        tableRows.push([
+          { content: main + (sub ? '\n' + sub : ''), styles: { fontStyle: sub ? 'normal' : 'bold', textColor: sub ? GRAY_MD : GRAY_DK } },
+          { content: String(q), styles: { halign: 'center' } },
+          { content: `${fmt(p)} ${curr}`, styles: { halign: 'right' } },
+          { content: `${fmt(q * p)} ${curr}`, styles: { halign: 'right', fontStyle: 'bold' } }
+        ]);
       }
 
       doc.autoTable({
         head: [[
-          { content: 'Désignation',      styles: { halign: 'left'  } },
-          { content: 'Qté',              styles: { halign: 'center' } },
-          { content: `Prix unitaire HT`, styles: { halign: 'right' } },
-          { content: `Total HT`,         styles: { halign: 'right' } }
+          { content: 'DESCRIPTION', styles: { halign: 'left' } },
+          { content: 'QTE', styles: { halign: 'center' } },
+          { content: 'PRIX UNITAIRE', styles: { halign: 'right' } },
+          { content: 'TOTAL HT', styles: { halign: 'right' } }
         ]],
         body: tableRows,
         startY: y,
         margin: { left: ml, right: mr },
-        styles: { 
-          fontSize: 9, 
-          cellPadding: { top: 5, bottom: 5, left: 6, right: 6 }, 
-          textColor: C.textDk, 
-          lineColor: C.line, 
-          lineWidth: 0.2 
+        styles: {
+          fontSize: 8.5,
+          cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+          lineColor: [220, 225, 235],
+          lineWidth: 0.2,
         },
-        headStyles: { 
-          fillColor: C.primary, 
-          textColor: C.white, 
-          fontStyle: 'bold', 
-          fontSize: 8.5, 
-          cellPadding: { top: 6, bottom: 6, left: 6, right: 6 } 
+        headStyles: {
+          fillColor: [245, 247, 250],
+          textColor: GRAY_MD,
+          fontStyle: 'bold',
+          fontSize: 7,
+          cellPadding: { top: 4, bottom: 4, left: 5, right: 5 }
         },
-        alternateRowStyles: { fillColor: C.rowAlt },
-        columnStyles: { 
-          0: { cellWidth: 'auto', halign: 'left' }, 
-          1: { cellWidth: 16, halign: 'center' }, 
-          2: { cellWidth: 36, halign: 'right' }, 
-          3: { cellWidth: 36, halign: 'right' } 
-        },
-        didParseCell(data) { 
-          if (data.column.index === 3 && data.section === 'body') { 
-            data.cell.styles.fontStyle = 'bold'; 
-            data.cell.styles.textColor = C.primary; 
-          } 
+        alternateRowStyles: { fillColor: [252, 253, 255] },
+        columnStyles: {
+          0: { cellWidth: 'auto' },
+          1: { cellWidth: 16 },
+          2: { cellWidth: 38 },
+          3: { cellWidth: 38 }
         }
       });
 
-      y = doc.lastAutoTable.finalY;
+      y = doc.lastAutoTable.finalY + 10;
 
       // === TOTAUX ===
-      const subtotal = tableRows.reduce((s, _, i) => { 
-        const tr = body.rows[i]; 
-        return s + num(tr.querySelector('[data-field="qty"]')?.value) * num(tr.querySelector('[data-field="price"]')?.value); 
+      const subtotal = tableRows.reduce((s, _, i) => {
+        const tr = body.rows[i];
+        return s + num(tr.querySelector('[data-field="qty"]')?.value) * num(tr.querySelector('[data-field="price"]')?.value);
       }, 0);
-      const discOn    = $('#discountEnabled')?.checked || false;
-      const discRate  = discOn ? num($('#discountRate')?.value) : 0;
-      const discount  = subtotal * discRate / 100;
+      const discOn = $('#discountEnabled')?.checked || false;
+      const discRate = discOn ? num($('#discountRate')?.value) : 0;
+      const discount = subtotal * discRate / 100;
       const afterDisc = subtotal - discount;
-      const vatOn     = $('#vatEnabled')?.checked || false;
-      const vatRate   = vatOn ? num($('#vatRate')?.value) : 0;
-      const tax       = afterDisc * vatRate / 100;
-      const total     = afterDisc + tax;
+      const vatOn = $('#vatEnabled')?.checked || false;
+      const vatRate = vatOn ? num($('#vatRate')?.value) : 0;
+      const tax = afterDisc * vatRate / 100;
+      const total = afterDisc + tax;
 
-      y += 4;
-      const totX = ml + cw * 0.48;
-      const totW = cw * 0.52;
-      const colAmt = pw - mr;
-      const colLbl = totX + 6;
+      const totBoxW = 72;
+      const totBoxX = rightX - totBoxW;
 
-      // Fond des totaux
-      setFill(C.accent);
-      setDraw(C.line, 0.3);
-      doc.roundedRect(totX, y, totW, 48, 4, 4, 'FD');
+      // Bloc noir TOTAL TTC
+      FC(...BLACK);
+      doc.roundedRect(totBoxX, y, totBoxW, 30, 5, 5, 'F');
+      SF('normal', 6.5);
+      SC(...GRAY_LT);
+      doc.text('TOTAL TTC', totBoxX + 8, y + 7);
+      SF('bold', 15);
+      SC(...WHITE);
+      doc.text(`${fmt(total)} ${curr}`, totBoxX + 8, y + 20);
 
-      let ty = y + 8;
-      const rows = [
-        { label: 'Sous-total HT', value: subtotal },
-        discOn ? { label: `Remise (${discRate}%)`, value: -discount, red: true } : null,
-        vatOn ? { label: `TVA (${vatRate}%)`, value: tax } : null
-      ].filter(Boolean);
+      // Details a gauche
+      const dx = ml;
+      const dy = y + 5;
+      SF('normal', 8);
+      SC(...GRAY_MD);
+      doc.text('Total HT', dx, dy);
+      SF('bold', 8);
+      SC(...GRAY_DK);
+      doc.text(`${fmt(subtotal)} ${curr}`, dx + 55, dy, { align: 'right' });
 
-      rows.forEach(row => {
-        setFont('normal', 8.5);
-        setColor(row.red ? C.red : C.textMd);
-        doc.text(row.label, colLbl, ty);
-        doc.text(`${row.red && row.value < 0 ? '− ' : ''}${fmt(Math.abs(row.value))} ${curr}`, colAmt, ty, { align: 'right' });
-        ty += 6.5;
-      });
-
-      // Séparateur
-      setDraw(C.primary, 0.5);
-      doc.line(totX + 4, ty, pw - mr - 4, ty);
-      ty += 3;
-
-      // TOTAL TTC
-      setFill(C.primary);
-      doc.roundedRect(totX + 2, ty - 2, totW - 4, 11, 3, 3, 'F');
-      setFont('bold', 11);
-      setColor(C.white);
-      doc.text('TOTAL TTC', colLbl, ty + 5);
-      doc.text(`${fmt(total)} ${curr}`, colAmt, ty + 5, { align: 'right' });
-      ty += 12;
-
-      y = ty + 4;
-
-      // === NOTES ===
-      const notes = $('#docNotes')?.value?.trim();
-      if (notes) {
-        const noteW = cw * 0.6;
-        const noteLines = doc.splitTextToSize(notes, noteW - 10);
-        const noteH = Math.max(18, 10 + noteLines.length * 4.5);
-        setFill(C.accent);
-        setDraw(C.line, 0.3);
-        doc.roundedRect(ml, y, noteW, noteH, 4, 4, 'FD');
-        
-        setFill(C.primary);
-        doc.roundedRect(ml, y, noteW, 8, 4, 4, 'F');
-        doc.rect(ml, y + 4, noteW, 4, 'F');
-        setFont('bold', 7);
-        setColor(C.white);
-        doc.text('NOTES ET CONDITIONS', ml + 5, y + 5.5);
-        
-        setFont('normal', 8);
-        setColor(C.textMd);
-        doc.text(noteLines, ml + 5, y + 12);
-        y += noteH + 6;
+      let dyy = dy + 7;
+      if (discOn) {
+        SF('normal', 8); SC(...GRAY_MD);
+        doc.text(`Remise (${discRate}%)`, dx, dyy);
+        SF('bold', 8); SC(...GRAY_DK);
+        doc.text(`-${fmt(discount)} ${curr}`, dx + 55, dyy, { align: 'right' });
+        dyy += 7;
       }
+      if (vatOn) {
+        SF('normal', 8); SC(...GRAY_MD);
+        doc.text(`TVA (${vatRate}%)`, dx, dyy);
+        SF('bold', 8); SC(...GRAY_DK);
+        doc.text(`${fmt(tax)} ${curr}`, dx + 55, dyy, { align: 'right' });
+        dyy += 7;
+      }
+      SF('bold', 8); SC(...GRAY_DK);
+      doc.text('Total TTC', dx, dyy);
+      doc.text(`${fmt(total)} ${curr}`, dx + 55, dyy, { align: 'right' });
+
+      y += 36;
 
       // === SIGNATURE ===
-      const signatoryName = $('#signatoryName')?.value?.trim() || '';
-      const signatoryRole = $('#signatoryRole')?.value?.trim() || '';
-      const sigBoxH = 30 + (signatoryName ? 6 : 0) + (signatoryRole ? 6 : 0);
-      const sigBoxW = 70;
-      const sigY = y;
+      SF('bold', 7);
+      SC(...BLUE);
+      doc.text('SIGNATURE', ml, y);
+      y += 4;
 
-      setFill(C.accent);
-      setDraw(C.line, 0.3);
-      doc.roundedRect(ml, sigY, sigBoxW, sigBoxH, 4, 4, 'FD');
-      
-      setFont('bold', 7);
-      setColor(C.textMd);
-      doc.text('CACHET ET SIGNATURE', ml + 4, sigY + 5);
-
-      if (state.sigImgDataURL) {
-        try {
-          const imgFmt = state.sigImgDataURL.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(state.sigImgDataURL, imgFmt, ml + 4, sigY + 8, sigBoxW - 10, 14, undefined, 'FAST');
-        } catch (_) {
-          setDraw(C.primary, 0.5);
-          doc.line(ml + 4, sigY + 18, ml + sigBoxW - 6, sigY + 18);
+      const signName = $('#signatoryName')?.value?.trim() || '';
+      const signRole = $('#signatoryRole')?.value?.trim() || '';
+      if (signName) {
+        SF('bold', 9); SC(...GRAY_DK);
+        doc.text(signName, ml, y + 5);
+        if (signRole) {
+          SF('normal', 8); SC(...GRAY_MD);
+          doc.text(signRole, ml, y + 10);
         }
-      } else {
-        setDraw(C.primary, 0.5);
-        doc.line(ml + 4, sigY + 18, ml + sigBoxW - 6, sigY + 18);
+        y += 15;
       }
-
-      let sigTextY = sigY + 24;
-      if (signatoryName) {
-        setFont('bold', 8.5);
-        setColor(C.textDk);
-        doc.text(signatoryName, ml + 4, sigTextY);
-        sigTextY += 6;
-      }
-      if (signatoryRole) {
-        setFont('normal', 7.5);
-        setColor(C.textMd);
-        doc.text(signatoryRole, ml + 4, sigTextY);
-      }
+      DC(...GRAY_LT, 0.5);
+      doc.line(ml, y, ml + 55, y);
+      y += 6;
 
       const place = $('#placeOfIssue')?.value;
       if (place) {
-        setFont('normal', 8);
-        setColor(C.textMd);
-        doc.text(`Fait à ${place}, le ${new Date().toLocaleDateString('fr-FR')}`, ml + sigBoxW + 8, sigY + sigBoxH/2 + 2);
+        SF('normal', 8); SC(...GRAY_MD);
+        doc.text(`Fait a ${place}, le ${new Date().toLocaleDateString('fr-FR')}`, ml, y);
       }
 
       // === FOOTER ===
       const pageH = doc.internal.pageSize.height;
       const footY = pageH - 10;
-      setFill(C.primary);
-      doc.rect(0, footY - 4, pw, 12, 'F');
-      
-      setFont('normal', 7);
-      setColor([170, 190, 225]);
-      const footerTxt = s.footer || `${mode.label}  ·  N° ${$('#docNumber')?.value || '—'}  ·  ${s.companyName || ''}`;
-      doc.text(footerTxt, pw / 2, footY + 2, { align: 'center' });
-
-      // Numéro de page
-      setFont('normal', 6.5);
-      setColor([200, 210, 230]);
-      doc.text('Page 1/1', pw - mr, footY + 2, { align: 'right' });
+      DC(...GRAY_LT, 0.3);
+      doc.line(ml, footY - 2, rightX, footY - 2);
+      SF('normal', 6.5);
+      SC(...GRAY_MD);
+      const footLines = [
+        s.footer || `${s.companyName || ''} - ${[s.address, s.city, s.country].filter(Boolean).join(', ') || ''}`,
+        s.ifu ? `IFU : ${s.ifu}` : '',
+        s.rccm ? `RCCM : ${s.rccm}` : ''
+      ].filter(Boolean);
+      let fy = footY + 1;
+      footLines.forEach(line => {
+        doc.text(line, pw / 2, fy, { align: 'center' });
+        fy += 3;
+      });
 
       const filename = `${mode.label}_${$('#docNumber')?.value || 'sans-numero'}.pdf`;
       doc.save(filename);
-      toast('PDF généré ✓', 'success');
+      toast('PDF genere ✓', 'success');
 
     } catch (err) {
       console.error('Erreur PDF :', err);
-      toast('Erreur lors de la génération du PDF', 'error');
+      toast('Erreur lors de la generation du PDF', 'error');
     }
   }
 
@@ -2223,7 +2209,10 @@
       onAuthStateChange(data?.session ?? null);
     } catch (err) {
       console.error('Auth init:', err);
-      toast('Connexion au serveur impossible. Vérifiez votre réseau.', 'error', 5000);
+      // Mode offline — initialiser l'app quand même
+      if (authOverlay) authOverlay.style.display = 'none';
+      showApp();
+      toast('Mode hors-ligne — vos données restent sur cet appareil.', 'info', 4000);
     }
   }
 
