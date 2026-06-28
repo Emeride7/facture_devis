@@ -2,8 +2,8 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-  <meta name="theme-color" content="#1e3c72">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <meta name="theme-color" content="#155eef">
   <title>ProGestion — Facturation & Devis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,563 +11,687 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-
-  <!-- ===== SIDEBAR ===== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <span class="sidebar-brand">
-        <i class="fas fa-file-invoice"></i>
-        <span class="sidebar-brand-text">ProGestion</span>
-      </span>
-      <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Réduire/Agrandir">
-        <i class="fas fa-chevron-left" id="sidebarToggleIcon"></i>
-      </button>
-    </div>
-
-    <!-- User info -->
-    <div class="sidebar-user" id="sidebarUser" style="display:none">
-      <div class="sidebar-user-avatar" id="sidebarUserAvatar">U</div>
-      <div class="sidebar-user-info">
-        <span class="sidebar-user-email" id="sidebarUserEmail"></span>
-        <span class="sidebar-user-plan">Plan Gratuit</span>
+<body data-theme="blue">
+  <div class="app-shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-backdrop"></div>
+      <div class="sidebar-header">
+        <span class="sidebar-brand">
+          <span class="sidebar-brand-mark"><i class="fas fa-file-invoice"></i></span>
+          <span class="sidebar-brand-text-wrap">
+            <span class="sidebar-brand-text">ProGestion</span>
+            <span class="sidebar-brand-subtitle">Facturation Pro</span>
+          </span>
+        </span>
+        <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Réduire/Agrandir">
+          <i class="fas fa-chevron-left" id="sidebarToggleIcon"></i>
+        </button>
       </div>
-    </div>
 
-    <!-- Nav items -->
-    <nav class="sidebar-nav">
-      <div class="sidebar-nav-label">Documents</div>
-      <button type="button" class="sidebar-nav-item active" id="navNew" data-view="editor">
-        <i class="fas fa-plus-circle"></i>
-        <span>Nouveau document</span>
-      </button>
-      <button type="button" class="sidebar-nav-item" id="navHistory" data-view="history">
-        <i class="fas fa-history"></i>
-        <span>Historique</span>
-        <span class="sidebar-badge" id="historyBadgeCount"></span>
-      </button>
-      <button type="button" class="sidebar-nav-item" id="navClients" data-view="clients">
-        <i class="fas fa-address-book"></i>
-        <span>Carnet clients</span>
-      </button>
-
-      <div class="sidebar-nav-label">Types</div>
-      <button type="button" class="sidebar-nav-item mode-nav-btn active" id="navDevis" data-mode="devis">
-        <i class="fas fa-file"></i>
-        <span>Devis</span>
-      </button>
-      <button type="button" class="sidebar-nav-item mode-nav-btn" id="navFacture" data-mode="facture">
-        <i class="fas fa-file-invoice-dollar"></i>
-        <span>Facture</span>
-      </button>
-      <button type="button" class="sidebar-nav-item mode-nav-btn" id="navProforma" data-mode="proforma">
-        <i class="fas fa-file-alt"></i>
-        <span>Pro Forma</span>
-      </button>
-
-      <div class="sidebar-nav-label">Actions</div>
-      <button type="button" class="sidebar-nav-item" id="navTemplate">
-        <i class="fas fa-layer-group"></i>
-        <span>Templates</span>
-      </button>
-      <button type="button" class="sidebar-nav-item" id="navSettings" data-view="settings">
-        <i class="fas fa-cog"></i>
-        <span>Paramètres</span>
-      </button>
-    </nav>
-
-    <!-- Bottom actions -->
-    <div class="sidebar-bottom">
-      <div class="sidebar-doc-counter" id="sidebarDocCounter" style="display:none">
-        <div class="sdc-bar-wrap">
-          <div class="sdc-bar" id="sdcBar"></div>
+      <div class="sidebar-user" id="sidebarUser" style="display:none">
+        <div class="sidebar-user-main">
+          <div class="sidebar-user-avatar" id="sidebarUserAvatar">U</div>
+          <div class="sidebar-user-info">
+            <span class="sidebar-user-email" id="sidebarUserEmail"></span>
+            <span class="sidebar-user-plan">Plan Gratuit</span>
+          </div>
         </div>
-        <span class="sdc-label" id="sdcLabel">0 / 10 documents</span>
-      </div>
-      <button type="button" class="sidebar-nav-item sidebar-logout" id="btnLogout" style="display:none">
-        <i class="fas fa-sign-out-alt"></i>
-        <span>Déconnexion</span>
-      </button>
-    </div>
-  </aside>
-
-  <!-- ===== MAIN AREA ===== -->
-  <div class="main-area" id="mainArea">
-
-    <!-- TOP BAR -->
-    <div class="topbar" id="topbar">
-      <!-- Breadcrumb -->
-      <div class="breadcrumb" id="breadcrumb">
-        <span class="bc-item bc-home"><i class="fas fa-home"></i></span>
-        <span class="bc-sep"><i class="fas fa-chevron-right"></i></span>
-        <span class="bc-item bc-current" id="bcCurrent">Nouveau document</span>
-      </div>
-
-      <!-- Autosave indicator -->
-      <div class="autosave-indicator" id="autosaveIndicator">
-        <span class="asi-dot" id="asiDot"></span>
-        <span class="asi-text" id="asiText"></span>
-      </div>
-
-      <!-- Topbar actions -->
-      <div class="topbar-actions">
-        <button type="button" class="btn-top btn-duplicate" id="btnDuplicate" title="Dupliquer ce document">
-          <i class="fas fa-copy"></i>
-          <span class="btn-top-label">Dupliquer</span>
-        </button>
-        <button type="button" class="btn-top btn-whatsapp" id="btnWhatsapp" title="Partager par WhatsApp">
-          <i class="fab fa-whatsapp"></i>
-          <span class="btn-top-label">WhatsApp</span>
-        </button>
-        <button type="button" class="btn-top btn-save-top" id="btnArchive" title="Sauvegarder (Ctrl+S)">
-          <i class="fas fa-save"></i>
-          <span class="btn-top-label">Sauvegarder</span>
-        </button>
-        <button type="button" class="btn-top btn-pdf" id="btnPdf" title="Exporter en PDF">
-          <i class="fas fa-file-pdf"></i>
-          <span class="btn-top-label">PDF</span>
-        </button>
-        <button type="button" class="btn-top btn-excel" id="btnExcel" title="Exporter en Excel">
-          <i class="fas fa-file-excel"></i>
-          <span class="btn-top-label">Excel</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- ===== VIEW: EDITOR ===== -->
-    <div class="view-panel active" id="viewEditor">
-      <main>
-        <div class="document-card">
-
-          <!-- STATUS BAR -->
-          <div class="doc-status-bar">
-            <div class="dsb-left">
-              <span class="doc-type-badge" id="docTypeBadge">DEVIS</span>
-              <div class="doc-status-select-wrap">
-                <label class="dsb-label">Statut :</label>
-                <select id="docStatus" class="doc-status-select">
-                  <option value="draft">📝 Brouillon</option>
-                  <option value="sent">📤 Envoyé</option>
-                  <option value="accepted">✅ Accepté</option>
-                  <option value="invoiced">💰 Facturé</option>
-                  <option value="refused">❌ Refusé</option>
-                  <option value="expired">⏰ Expiré</option>
-                </select>
-              </div>
-            </div>
-            <div class="dsb-right">
-              <button type="button" class="btn-undo" id="btnUndo" title="Annuler (Ctrl+Z)" disabled>
-                <i class="fas fa-undo"></i>
-              </button>
-              <button type="button" class="btn-redo" id="btnRedo" title="Rétablir (Ctrl+Y)" disabled>
-                <i class="fas fa-redo"></i>
-              </button>
-            </div>
+        <div class="sidebar-user-storage">
+          <div class="sidebar-storage-label">
+            <span>Stockage documents</span>
+            <strong id="sdcLabel">0 / 10 documents</strong>
           </div>
-
-          <!-- ===== EN-TÊTE DU DOCUMENT ===== -->
-          <div class="document-header">
-            <div class="header-left">
-              <div class="logo-wrapper" title="Cliquer pour changer le logo">
-                <img id="logoPreview" src="#" alt="Logo entreprise">
-                <div class="logo-placeholder" id="logoPlaceholder">
-                  <i class="fas fa-cloud-upload-alt"></i>
-                  <span>Logo</span>
-                </div>
-                <input type="file" id="logoUpload" accept="image/*" aria-label="Importer logo">
-              </div>
-              <div class="emitter-info">
-                <div class="info-row">
-                  <label><i class="fas fa-building"></i> Votre entreprise</label>
-                  <input type="text" class="header-input" id="emitterName" placeholder="Nom de l'entreprise">
-                </div>
-                <div class="info-row">
-                  <input type="text" class="header-input" id="emitterAddress" placeholder="Adresse">
-                </div>
-                <div class="info-row">
-                  <input type="text" class="header-input" id="emitterExtra" placeholder="Complément d'adresse">
-                </div>
-                <div class="info-row two-cols">
-                  <input type="tel" class="header-input" id="emitterTel" placeholder="Téléphone">
-                  <input type="email" class="header-input" id="emitterEmail" placeholder="Email">
-                </div>
-              </div>
-            </div>
-            <div class="header-right">
-              <div class="doc-title-display" id="docTitle">DEVIS</div>
-              <div class="ref-grid">
-                <div class="ref-field">
-                  <label for="docNumber">N°</label>
-                  <input type="text" class="ref-input" id="docNumber" placeholder="N° document">
-                </div>
-                <div class="ref-field">
-                  <label for="docDate">Date</label>
-                  <input type="date" class="ref-input" id="docDate">
-                </div>
-              </div>
-              <div class="ref-field ref-field-full" id="validityContainer">
-                <label for="docValidity">Valide jusqu'au</label>
-                <input type="date" class="ref-input" id="docValidity">
-              </div>
-            </div>
+          <div class="sdc-bar-wrap">
+            <div class="sdc-bar" id="sdcBar"></div>
           </div>
+        </div>
+      </div>
 
-          <!-- ===== CORPS DU DOCUMENT ===== -->
-          <div class="document-body">
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-label">Pilotage</div>
+        <button type="button" class="sidebar-nav-item" id="navDashboard" data-view="dashboard" title="Dashboard">
+          <i class="fas fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </button>
+        <button type="button" class="sidebar-nav-item active" id="navNew" data-view="editor" title="Nouveau document">
+          <i class="fas fa-plus-circle"></i>
+          <span>Nouveau document</span>
+        </button>
+        <button type="button" class="sidebar-nav-item" id="navHistory" data-view="history" title="Historique">
+          <i class="fas fa-history"></i>
+          <span>Historique</span>
+          <span class="sidebar-badge" id="historyBadgeCount"></span>
+        </button>
+        <button type="button" class="sidebar-nav-item" id="navClients" data-view="clients" title="Clients">
+          <i class="fas fa-address-book"></i>
+          <span>Clients</span>
+        </button>
 
-            <!-- Section Client -->
-            <div class="section-title"><i class="fas fa-user-tie"></i> Client</div>
-            <div class="client-section">
-              <div class="client-header-row">
-                <div class="client-suggest-wrap">
-                  <input type="text" class="form-input client-name-input" id="clientName" placeholder="Nom / Raison sociale" list="clientDatalist" autocomplete="off">
-                  <div class="client-dropdown" id="clientDropdown"></div>
-                </div>
-                <button type="button" class="btn-client-book" id="btnPickClient" title="Choisir depuis le carnet">
-                  <i class="fas fa-address-book"></i> Carnet
-                </button>
-              </div>
-              <div class="client-grid">
-                <input type="text" class="form-input" id="clientAddress" placeholder="Adresse">
-                <input type="text" class="form-input" id="clientExtra"   placeholder="Complément d'adresse">
-                <input type="text" class="form-input" id="clientSiret"   placeholder="SIRET / IFU (optionnel)">
-                <input type="tel"  class="form-input" id="clientTel"     placeholder="Téléphone">
-                <input type="email" class="form-input" id="clientEmail"  placeholder="Email">
-              </div>
-              <div class="client-save-row">
-                <button type="button" class="btn-save-client" id="btnSaveClient">
-                  <i class="fas fa-user-plus"></i> Enregistrer ce client
-                </button>
-              </div>
+        <div class="sidebar-nav-label">Types</div>
+        <button type="button" class="sidebar-nav-item mode-nav-btn active" id="navDevis" data-mode="devis" title="Devis">
+          <i class="fas fa-file-alt"></i>
+          <span>Devis</span>
+        </button>
+        <button type="button" class="sidebar-nav-item mode-nav-btn" id="navFacture" data-mode="facture" title="Facture">
+          <i class="fas fa-file-invoice-dollar"></i>
+          <span>Facture</span>
+        </button>
+        <button type="button" class="sidebar-nav-item mode-nav-btn" id="navProforma" data-mode="proforma" title="Pro Forma">
+          <i class="fas fa-file-invoice"></i>
+          <span>Pro Forma</span>
+        </button>
+
+        <div class="sidebar-nav-label">Administration</div>
+        <button type="button" class="sidebar-nav-item" id="navSettings" data-view="settings" title="Mon entreprise">
+          <i class="fas fa-building"></i>
+          <span>Mon entreprise</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-doc-counter" id="sidebarDocCounter" style="display:none">
+          <div class="sidebar-counter-card">
+            <div class="sidebar-counter-text">
+              <span>Capacité actuelle</span>
+              <strong>Plan Starter</strong>
             </div>
+            <span class="sidebar-counter-pill">10 docs</span>
+          </div>
+        </div>
+        <button type="button" class="sidebar-nav-item sidebar-logout" id="btnLogout" style="display:none">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Déconnexion</span>
+        </button>
+      </div>
+    </aside>
 
-            <!-- Section Prestations -->
-            <div class="section-title"><i class="fas fa-list"></i> Prestations</div>
-            <div class="table-container">
-              <table class="items-table" id="itemsTable">
-                <thead>
-                  <tr>
-                    <th class="col-drag" aria-label="Réorganiser"></th>
-                    <th class="col-designation">Désignation</th>
-                    <th class="col-qty">Qté</th>
-                    <th class="col-price">Prix unitaire HT</th>
-                    <th class="col-total">Total HT</th>
-                    <th class="col-actions" aria-label="Actions"></th>
-                  </tr>
-                </thead>
-                <tbody id="itemsBody"></tbody>
-              </table>
-            </div>
-            <button type="button" class="btn-add-row" id="addRow">
-              <i class="fas fa-plus-circle"></i> Ajouter une ligne
+    <!-- MAIN AREA -->
+    <div class="main-area" id="mainArea">
+      <!-- TOPBAR -->
+      <header class="topbar" id="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb" id="breadcrumb">
+            <span class="bc-item bc-home"><i class="fas fa-home"></i></span>
+            <span class="bc-sep"><i class="fas fa-chevron-right"></i></span>
+            <span class="bc-item bc-current" id="bcCurrent">Nouveau document</span>
+          </div>
+          <div class="workspace-intro">
+            <h1 id="workspaceTitle">Création de document</h1>
+            <p id="workspaceSubtitle">Générez un devis ou une facture professionnelle en quelques clics.</p>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="autosave-indicator" id="autosaveIndicator">
+            <span class="asi-dot" id="asiDot"></span>
+            <span class="asi-text" id="asiText"></span>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn-top btn-save-top" id="btnArchive" title="Sauvegarder (Ctrl+S)">
+              <i class="fas fa-save"></i>
+              <span class="btn-top-label">Sauvegarder</span>
             </button>
+            <button type="button" class="btn-top btn-pdf" id="btnPdf" title="Exporter en PDF">
+              <i class="fas fa-file-pdf"></i>
+              <span class="btn-top-label">PDF</span>
+            </button>
+          </div>
+        </div>
+      </header>
 
-            <!-- Section Notes -->
-            <div class="section-title section-title-notes">
-              <i class="fas fa-sticky-note"></i> Notes &amp; Conditions
+      <div class="page-scroll">
+        <!-- DASHBOARD -->
+        <section class="view-panel" id="viewDashboard">
+          <div class="dashboard-shell">
+            <div class="dashboard-hero card-surface">
+              <div>
+                <span class="eyebrow">Vue d'ensemble</span>
+                <h2>Bonjour <span id="dashboardGreetingName">Utilisateur</span></h2>
+                <p id="dashboardTodayLabel">Pilotez vos devis, factures et clients depuis un cockpit unique.</p>
+              </div>
+              <div class="dashboard-hero-actions">
+                <button type="button" class="hero-action primary" id="dashboardCreateDoc">
+                  <i class="fas fa-plus"></i>
+                  <span>Nouveau document</span>
+                </button>
+              </div>
             </div>
-            <textarea class="notes-textarea" id="docNotes" rows="4"
-              placeholder="Conditions de paiement, délais, mentions légales…"></textarea>
 
-            <!-- Section Pied de page -->
-            <div class="document-footer">
-              <div class="totals-section">
-                <div class="totals-left">
-                  <div class="info-group">
-                    <div class="toggle-group">
-                      <input type="checkbox" id="vatEnabled" checked>
-                      <label for="vatEnabled">TVA</label>
-                    </div>
-                    <div class="rate-input" id="vatInputContainer">
-                      <input type="number" id="vatRate" value="18" min="0" max="100" step="0.5">
-                      <span>%</span>
-                    </div>
-                  </div>
-                  <div class="info-group">
-                    <div class="toggle-group">
-                      <input type="checkbox" id="discountEnabled">
-                      <label for="discountEnabled">Remise</label>
-                    </div>
-                    <div class="rate-input" id="discountInputContainer" style="display:none">
-                      <input type="number" id="discountRate" value="0" min="0" max="100" step="0.5">
-                      <span>%</span>
-                    </div>
-                  </div>
-                  <div class="info-group">
-                    <div class="toggle-group static-label"><i class="fas fa-coins"></i>&nbsp; Devise</div>
-                    <select id="currency" class="form-input" style="max-width:120px;padding:0.4rem 0.7rem;font-size:0.88rem">
-                      <option value="CFA">CFA</option>
-                      <option value="EUR">EUR €</option>
-                      <option value="USD">USD $</option>
-                      <option value="GBP">GBP £</option>
-                      <option value="MAD">MAD</option>
-                      <option value="XOF">XOF</option>
-                    </select>
-                  </div>
+            <div class="dashboard-kpis" id="dashboardKpis">
+              <article class="kpi-card card-surface"><span>Total documents</span><strong id="kpiTotalDocs">0</strong><small>Historique global</small></article>
+              <article class="kpi-card card-surface"><span>Devis</span><strong id="kpiDevis">0</strong><small>En portefeuille</small></article>
+              <article class="kpi-card card-surface"><span>Factures</span><strong id="kpiFactures">0</strong><small>Émises</small></article>
+              <article class="kpi-card card-surface"><span>CA cumulé</span><strong id="kpiRevenue">0 CFA</strong><small>Tous documents TTC</small></article>
+            </div>
 
-                  <!-- QR Code paiement -->
-                  <div class="qr-section" id="qrSection">
-                    <div class="qr-toggle-row">
-                      <label class="qr-toggle-label">
-                        <input type="checkbox" id="qrEnabled">
-                        <span><i class="fas fa-qrcode"></i> QR Code paiement Mobile Money</span>
-                      </label>
-                    </div>
-                    <div class="qr-config" id="qrConfig" style="display:none">
-                      <select id="qrProvider" class="form-input" style="max-width:130px;font-size:0.82rem;padding:0.35rem 0.6rem">
-                        <option value="momo">MTN MOMO</option>
-                        <option value="wave">Wave</option>
-                        <option value="airtel">Airtel Money</option>
-                        <option value="moov">Moov Money</option>
+            <div class="dashboard-grid">
+              <section class="card-surface dashboard-card chart-card">
+                <div class="card-head">
+                  <div><span class="eyebrow">Revenus</span><h3>Graphique CA</h3></div>
+                </div>
+                <div class="mini-chart" id="revenueChart"></div>
+              </section>
+
+              <section class="card-surface dashboard-card chart-card">
+                <div class="card-head">
+                  <div><span class="eyebrow">Répartition</span><h3>Devis / Factures</h3></div>
+                </div>
+                <div class="donut-card">
+                  <div class="donut-chart" id="docsDonut"></div>
+                  <div class="legend-list" id="docsLegend"></div>
+                </div>
+              </section>
+
+              <section class="card-surface dashboard-card">
+                <div class="card-head">
+                  <div><span class="eyebrow">Activité</span><h3>Documents récents</h3></div>
+                </div>
+                <div class="dashboard-list" id="dashboardRecentDocs"></div>
+              </section>
+
+              <section class="card-surface dashboard-card">
+                <div class="card-head">
+                  <div><span class="eyebrow">Clients</span><h3>Top clients</h3></div>
+                </div>
+                <div class="dashboard-list" id="dashboardTopClients"></div>
+              </section>
+
+              <section class="card-surface dashboard-card">
+                <div class="card-head">
+                  <div><span class="eyebrow">Suivi</span><h3>Documents en attente</h3></div>
+                </div>
+                <div class="dashboard-list" id="dashboardPendingDocs"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <!-- EDITOR -->
+        <section class="view-panel active" id="viewEditor">
+          <main class="editor-page">
+            <div class="editor-banner card-surface">
+              <div class="editor-banner-left">
+                <span class="eyebrow">Document workspace</span>
+                <h2 id="editorHeading">Construisez votre document</h2>
+                <p>Remplissez les informations ci-dessous pour générer un devis ou une facture professionnelle.</p>
+              </div>
+              <div class="editor-banner-right">
+                <div class="doc-status-bar">
+                  <div class="dsb-left">
+                    <span class="doc-type-badge" id="docTypeBadge">DEVIS</span>
+                    <div class="doc-status-select-wrap">
+                      <label class="dsb-label">Statut</label>
+                      <select id="docStatus" class="doc-status-select">
+                        <option value="draft">📝 Brouillon</option>
+                        <option value="sent">📤 Envoyé</option>
+                        <option value="accepted">✅ Accepté</option>
+                        <option value="invoiced">💰 Facturé</option>
+                        <option value="refused">❌ Refusé</option>
+                        <option value="expired">⏰ Expiré</option>
                       </select>
-                      <input type="tel" id="qrPhone" class="form-input" placeholder="Numéro de paiement" style="max-width:180px;font-size:0.82rem;padding:0.35rem 0.6rem">
-                      <button type="button" class="btn-gen-qr" id="btnGenQr"><i class="fas fa-qrcode"></i> Générer</button>
                     </div>
-                    <div id="qrCodeDisplay" class="qr-code-display"></div>
+                  </div>
+                  <div class="dsb-right">
+                    <button type="button" class="btn-undo" id="btnUndo" title="Annuler (Ctrl+Z)" disabled><i class="fas fa-undo"></i></button>
+                    <button type="button" class="btn-redo" id="btnRedo" title="Rétablir (Ctrl+Y)" disabled><i class="fas fa-redo"></i></button>
                   </div>
                 </div>
-                <div class="totals-right">
+                <div class="editor-banner-metrics">
+                  <div class="metric-chip"><span>Total TTC</span><strong><span id="bannerGrandTotal">0</span> <span class="curr">CFA</span></strong></div>
+                  <div class="metric-chip"><span>N° document</span><strong id="bannerDocNumber">—</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="editor-grid">
+              <div class="editor-main-column">
+                <!-- Entreprise -->
+                <article class="section-card company-card">
+                  <div class="section-title-row">
+                    <div>
+                      <span class="eyebrow">Entreprise</span>
+                      <h3>Émetteur & identité</h3>
+                    </div>
+                  </div>
+                  <div class="document-header">
+                    <div class="header-left">
+                      <div class="logo-wrapper" title="Cliquer pour changer le logo">
+                        <img id="logoPreview" src="#" alt="Logo entreprise">
+                        <div class="logo-placeholder" id="logoPlaceholder">
+                          <i class="fas fa-cloud-upload-alt"></i>
+                          <span>Logo</span>
+                        </div>
+                        <input type="file" id="logoUpload" accept="image/*" aria-label="Importer logo">
+                      </div>
+                      <div class="emitter-info">
+                        <div class="info-row">
+                          <label><i class="fas fa-building"></i> Votre entreprise</label>
+                          <input type="text" class="header-input" id="emitterName" placeholder="Nom de l'entreprise">
+                        </div>
+                        <div class="info-row"><input type="text" class="header-input" id="emitterAddress" placeholder="Adresse"></div>
+                        <div class="info-row"><input type="text" class="header-input" id="emitterExtra" placeholder="Complément d'adresse"></div>
+                        <div class="info-row two-cols">
+                          <input type="tel" class="header-input" id="emitterTel" placeholder="Téléphone">
+                          <input type="email" class="header-input" id="emitterEmail" placeholder="Email">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="header-right">
+                      <div class="doc-title-display" id="docTitle">DEVIS</div>
+                      <div class="ref-grid">
+                        <div class="ref-field">
+                          <label for="docNumber">N°</label>
+                          <input type="text" class="ref-input" id="docNumber" placeholder="N° document">
+                        </div>
+                        <div class="ref-field">
+                          <label for="docDate">Date</label>
+                          <input type="date" class="ref-input" id="docDate">
+                        </div>
+                      </div>
+                      <div class="ref-field ref-field-full" id="validityContainer">
+                        <label for="docValidity">Valide jusqu'au</label>
+                        <input type="date" class="ref-input" id="docValidity">
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <!-- Client -->
+                <article class="section-card client-card">
+                  <div class="section-title-row">
+                    <div>
+                      <span class="eyebrow">Client</span>
+                      <h3>Coordonnées de facturation</h3>
+                    </div>
+                    <button type="button" class="btn-client-book" id="btnPickClient" title="Choisir depuis le carnet">
+                      <i class="fas fa-address-book"></i> Carnet
+                    </button>
+                  </div>
+                  <div class="client-section">
+                    <div class="client-header-row">
+                      <div class="client-suggest-wrap">
+                        <input type="text" class="form-input client-name-input" id="clientName" placeholder="Nom / Raison sociale" list="clientDatalist" autocomplete="off">
+                        <div class="client-dropdown" id="clientDropdown"></div>
+                      </div>
+                    </div>
+                    <div class="client-grid">
+                      <input type="text" class="form-input" id="clientAddress" placeholder="Adresse">
+                      <input type="text" class="form-input" id="clientExtra" placeholder="Complément d'adresse">
+                      <input type="text" class="form-input" id="clientSiret" placeholder="IFU / RCCM (optionnel)">
+                      <input type="tel" class="form-input" id="clientTel" placeholder="Téléphone">
+                      <input type="email" class="form-input" id="clientEmail" placeholder="Email">
+                    </div>
+                    <div class="client-save-row">
+                      <button type="button" class="btn-save-client" id="btnSaveClient"><i class="fas fa-user-plus"></i> Enregistrer ce client</button>
+                    </div>
+                  </div>
+                </article>
+
+                <!-- Articles -->
+                <article class="section-card items-card">
+                  <div class="section-title-row">
+                    <div>
+                      <span class="eyebrow">Prestations</span>
+                      <h3>Articles et services</h3>
+                    </div>
+                    <button type="button" class="btn-add-row" id="addRow"><i class="fas fa-plus-circle"></i> Ajouter une ligne</button>
+                  </div>
+                  <div class="table-container">
+                    <table class="items-table" id="itemsTable">
+                      <thead>
+                        <tr>
+                          <th class="col-drag" aria-label="Réorganiser"></th>
+                          <th class="col-designation">Désignation</th>
+                          <th class="col-qty">Qté</th>
+                          <th class="col-price">Prix unitaire HT</th>
+                          <th class="col-total">Total HT</th>
+                          <th class="col-actions" aria-label="Actions"></th>
+                        </tr>
+                      </thead>
+                      <tbody id="itemsBody"></tbody>
+                    </table>
+                  </div>
+                  <div class="items-help-row">
+                    <div class="items-hint"><i class="fas fa-lightbulb"></i> Saisissez le nom d'un article pour bénéficier de l'autocomplétion.</div>
+                  </div>
+                </article>
+              </div>
+
+              <aside class="editor-side-column">
+                <!-- Paiement -->
+                <article class="section-card payment-card">
+                  <div class="section-title-row">
+                    <div>
+                      <span class="eyebrow">Paiement</span>
+                      <h3>TVA et remise</h3>
+                    </div>
+                  </div>
+
+                  <div class="payment-stack">
+                    <div class="info-group">
+                      <div class="toggle-group">
+                        <input type="checkbox" id="vatEnabled" checked>
+                        <label for="vatEnabled">TVA</label>
+                      </div>
+                      <div class="rate-input" id="vatInputContainer">
+                        <input type="number" id="vatRate" value="18" min="0" max="100" step="0.5">
+                        <span>%</span>
+                      </div>
+                    </div>
+
+                    <div class="info-group">
+                      <div class="toggle-group">
+                        <input type="checkbox" id="discountEnabled">
+                        <label for="discountEnabled">Remise</label>
+                      </div>
+                      <div class="rate-input" id="discountInputContainer" style="display:none">
+                        <input type="number" id="discountRate" value="0" min="0" max="100" step="0.5">
+                        <span>%</span>
+                      </div>
+                    </div>
+
+                    <div class="info-group">
+                      <div class="toggle-group static-label"><i class="fas fa-coins"></i>&nbsp; Devise</div>
+                      <select id="currency" class="form-input compact-select">
+                        <option value="CFA">CFA</option>
+                        <option value="EUR">EUR €</option>
+                        <option value="USD">USD $</option>
+                        <option value="GBP">GBP £</option>
+                      </select>
+                    </div>
+                  </div>
+                </article>
+
+                <!-- Totaux -->
+                <article class="section-card totals-card">
+                  <div class="section-title-row">
+                    <div>
+                      <span class="eyebrow">Totaux</span>
+                      <h3>Vision financière</h3>
+                    </div>
+                  </div>
+                  <div class="totals-highlight">
+                    <span>Total TTC</span>
+                    <strong><span id="grandTotal">0</span> <span class="curr">CFA</span></strong>
+                  </div>
                   <table class="totals-table">
                     <tbody>
                       <tr>
                         <td class="label-cell">Sous-total HT</td>
-                        <td class="amount-cell">
-                          <span id="subtotal">0</span>&nbsp;<span class="curr">CFA</span>
-                        </td>
+                        <td class="amount-cell"><span id="subtotal">0</span>&nbsp;<span class="curr">CFA</span></td>
                       </tr>
                       <tr id="discountRow" style="display:none">
-                        <td class="label-cell">
-                          Remise (<span id="discountRateDisplay">0</span>%)
-                        </td>
-                        <td class="amount-cell discount-cell">
-                          −<span id="totalDiscount">0</span>&nbsp;<span class="curr">CFA</span>
-                        </td>
+                        <td class="label-cell">Remise (<span id="discountRateDisplay">0</span>%)</td>
+                        <td class="amount-cell discount-cell">−<span id="totalDiscount">0</span>&nbsp;<span class="curr">CFA</span></td>
                       </tr>
                       <tr id="vatRow">
-                        <td class="label-cell">
-                          TVA (<span id="vatRateDisplay">18</span>%)
-                        </td>
-                        <td class="amount-cell">
-                          <span id="totalTax">0</span>&nbsp;<span class="curr">CFA</span>
-                        </td>
-                      </tr>
-                      <tr class="total-row">
-                        <td class="label-cell">Total TTC</td>
-                        <td class="amount-cell total">
-                          <span id="grandTotal">0</span>&nbsp;<span class="curr">CFA</span>
-                        </td>
+                        <td class="label-cell">TVA (<span id="vatRateDisplay">18</span>%)</td>
+                        <td class="amount-cell"><span id="totalTax">0</span>&nbsp;<span class="curr">CFA</span></td>
                       </tr>
                     </tbody>
                   </table>
-                </div>
-              </div>
-            </div>
+                </article>
 
-          </div><!-- /.document-body -->
-
-          <!-- ===== SIGNATURE ===== -->
-          <div class="signature-section">
-            <div class="signature-left">
-              <div class="signature-label">Cachet et signature</div>
-              <div class="signature-fields">
-                <input type="text" id="signatoryName" class="inline-input sig-name-input" placeholder="Nom et prénom du signataire">
-                <select id="signatoryRole" class="inline-select">
-                  <option value="">— Rôle —</option>
-                  <option value="Directeur Général">Directeur Général</option>
-                  <option value="Directeur">Directeur</option>
-                  <option value="Directeur Commercial">Directeur Commercial</option>
-                  <option value="Comptable">Comptable</option>
-                  <option value="Secrétaire">Secrétaire</option>
-                  <option value="Responsable Administratif">Responsable Administratif</option>
-                  <option value="Gérant">Gérant</option>
-                </select>
-              </div>
-              <!-- Signature image upload -->
-              <div class="signature-img-wrap">
-                <div class="sig-upload-zone" id="sigUploadZone" title="Cliquer pour ajouter une image de signature">
-                  <img id="sigImgPreview" src="#" alt="Signature" style="display:none">
-                  <div class="sig-upload-placeholder" id="sigUploadPlaceholder">
-                    <i class="fas fa-signature"></i>
-                    <span>Ajouter image de signature</span>
+                <!-- Notes -->
+                <article class="section-card notes-card">
+                  <div class="section-title-row">
+                    <div>
+                      <span class="eyebrow">Notes</span>
+                      <h3>Conditions commerciales</h3>
+                    </div>
                   </div>
-                  <input type="file" id="sigImgUpload" accept="image/*" aria-label="Image de signature">
+                  <textarea class="notes-textarea" id="docNotes" rows="4" placeholder="Conditions de paiement, délais, mentions légales…"></textarea>
+                </article>
+
+                <!-- Signature -->
+                <article class="section-card signature-card" id="signatureCard">
+                  <div class="section-title-row">
+                    <div>
+                      <span class="eyebrow">Signature</span>
+                      <h3>Cachet & validation</h3>
+                    </div>
+                  </div>
+                  <div class="signature-section">
+                    <div class="signature-left">
+                      <div class="signature-label">Cachet et signature</div>
+                      <div class="signature-fields">
+                        <input type="text" id="signatoryName" class="inline-input sig-name-input" placeholder="Nom et prénom du signataire">
+                        <select id="signatoryRole" class="inline-select">
+                          <option value="">— Rôle —</option>
+                          <option value="Directeur Général">Directeur Général</option>
+                          <option value="Directeur">Directeur</option>
+                          <option value="Directeur Commercial">Directeur Commercial</option>
+                          <option value="Comptable">Comptable</option>
+                          <option value="Gérant">Gérant</option>
+                          <option value="Responsable">Responsable</option>
+                        </select>
+                      </div>
+                      <div class="signature-img-wrap">
+                        <div class="sig-upload-zone" id="sigUploadZone" title="Cliquer pour ajouter une image de signature">
+                          <img id="sigImgPreview" src="#" alt="Signature" style="display:none">
+                          <div class="sig-upload-placeholder" id="sigUploadPlaceholder">
+                            <i class="fas fa-signature"></i>
+                            <span>Ajouter image de signature</span>
+                          </div>
+                          <input type="file" id="sigImgUpload" accept="image/*" aria-label="Image de signature">
+                        </div>
+                        <button type="button" class="btn-clear-sig" id="btnClearSig" style="display:none" title="Supprimer la signature"><i class="fas fa-times"></i></button>
+                      </div>
+                      <div class="signature-line"></div>
+                    </div>
+                    <div class="signature-right">
+                      Fait à&nbsp;<input type="text" id="placeOfIssue" placeholder="Lieu" class="inline-input">,
+                      le&nbsp;<span id="currentDate"></span>
+                    </div>
+                  </div>
+                </article>
+              </aside>
+            </div>
+          </main>
+        </section>
+
+        <!-- HISTORY -->
+        <section class="view-panel" id="viewHistory">
+          <div class="view-header">
+            <div>
+              <span class="eyebrow">Historique</span>
+              <h2><i class="fas fa-history"></i> Historique des documents</h2>
+            </div>
+          </div>
+          <div class="history-filters card-surface compact-panel">
+            <div class="search-wrap">
+              <i class="fas fa-search search-icon"></i>
+              <input type="search" id="historySearch" placeholder="Rechercher par client, n°, montant…">
+            </div>
+            <div class="filter-group">
+              <select id="filterType" class="filter-select">
+                <option value="">Tous les types</option>
+                <option value="devis">Devis</option>
+                <option value="facture">Facture</option>
+                <option value="proforma">Pro Forma</option>
+              </select>
+              <select id="filterStatus" class="filter-select">
+                <option value="">Tous les statuts</option>
+                <option value="draft">Brouillon</option>
+                <option value="sent">Envoyé</option>
+                <option value="accepted">Accepté</option>
+                <option value="invoiced">Facturé</option>
+                <option value="refused">Refusé</option>
+                <option value="expired">Expiré</option>
+              </select>
+            </div>
+          </div>
+          <div class="history-grid" id="historyList"></div>
+        </section>
+
+        <!-- CLIENTS -->
+        <section class="view-panel" id="viewClients">
+          <div class="view-header">
+            <div>
+              <span class="eyebrow">CRM léger</span>
+              <h2><i class="fas fa-address-book"></i> Carnet clients</h2>
+            </div>
+            <button type="button" class="btn-add-client-manual" id="btnAddClientManual"><i class="fas fa-user-plus"></i> Nouveau client</button>
+          </div>
+          <div class="clients-search-wrap card-surface compact-panel">
+            <i class="fas fa-search search-icon"></i>
+            <input type="search" id="clientsSearch" placeholder="Rechercher un client…">
+          </div>
+          <div class="clients-grid" id="clientsGrid"></div>
+        </section>
+
+        <!-- SETTINGS / MON ENTREPRISE -->
+        <section class="view-panel" id="viewSettings">
+          <div class="view-header">
+            <div>
+              <span class="eyebrow">Configuration</span>
+              <h2><i class="fas fa-building"></i> Fiche entreprise</h2>
+            </div>
+          </div>
+          
+          <div class="settings-grid">
+            <!-- Informations générales -->
+            <div class="settings-card settings-card-full">
+              <div class="settings-card-title"><i class="fas fa-info-circle"></i> Informations générales</div>
+              <div class="settings-row settings-row-2cols">
+                <div class="settings-field">
+                  <label>Nom de l'entreprise *</label>
+                  <input type="text" id="settingCompanyName" class="form-input" placeholder="Nom de l'entreprise">
                 </div>
-                <button type="button" class="btn-clear-sig" id="btnClearSig" style="display:none" title="Supprimer la signature">
-                  <i class="fas fa-times"></i>
-                </button>
+                <div class="settings-field">
+                  <label>Nom du responsable</label>
+                  <input type="text" id="settingManagerName" class="form-input" placeholder="Nom du responsable">
+                </div>
+                <div class="settings-field">
+                  <label>Prénom du responsable</label>
+                  <input type="text" id="settingManagerFirstname" class="form-input" placeholder="Prénom du responsable">
+                </div>
+                <div class="settings-field">
+                  <label>IFU</label>
+                  <input type="text" id="settingIfu" class="form-input" placeholder="Numéro IFU">
+                </div>
+                <div class="settings-field">
+                  <label>RCCM</label>
+                  <input type="text" id="settingRccm" class="form-input" placeholder="Numéro RCCM">
+                </div>
+                <div class="settings-field">
+                  <label>Adresse</label>
+                  <input type="text" id="settingAddress" class="form-input" placeholder="Adresse complète">
+                </div>
+                <div class="settings-field">
+                  <label>Ville</label>
+                  <input type="text" id="settingCity" class="form-input" placeholder="Ville">
+                </div>
+                <div class="settings-field">
+                  <label>Pays</label>
+                  <input type="text" id="settingCountry" class="form-input" placeholder="Pays">
+                </div>
+                <div class="settings-field">
+                  <label>Téléphone</label>
+                  <input type="tel" id="settingPhone" class="form-input" placeholder="Téléphone">
+                </div>
+                <div class="settings-field">
+                  <label>Email</label>
+                  <input type="email" id="settingEmail" class="form-input" placeholder="Email">
+                </div>
+                <div class="settings-field">
+                  <label>Site Web</label>
+                  <input type="url" id="settingWebsite" class="form-input" placeholder="https://monsite.com">
+                </div>
+                <div class="settings-field">
+                  <label>Devise par défaut</label>
+                  <select id="settingDefaultCurrency" class="filter-select">
+                    <option value="CFA">CFA</option>
+                    <option value="EUR">EUR €</option>
+                    <option value="USD">USD $</option>
+                    <option value="GBP">GBP £</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label>TVA par défaut (%)</label>
+                  <input type="number" id="settingVatRate" class="form-input" placeholder="18" min="0" max="100" step="0.5">
+                </div>
               </div>
-              <div class="signature-line"></div>
             </div>
-            <div class="signature-right">
-              Fait à&nbsp;<input type="text" id="placeOfIssue" placeholder="Lieu" class="inline-input">,
-              le&nbsp;<span id="currentDate"></span>
+
+            <!-- Logo et Signature -->
+            <div class="settings-card settings-card-half">
+              <div class="settings-card-title"><i class="fas fa-image"></i> Logo</div>
+              <div class="settings-row">
+                <div class="settings-logo-upload">
+                  <div class="settings-logo-preview" id="settingsLogoPreview">
+                    <i class="fas fa-building"></i>
+                  </div>
+                  <button type="button" class="btn-settings-upload" id="settingsLogoUploadBtn"><i class="fas fa-upload"></i> Importer un logo</button>
+                  <input type="file" id="settingsLogoUpload" accept="image/*" style="display:none">
+                  <button type="button" class="btn-settings-remove" id="settingsLogoRemove" style="display:none"><i class="fas fa-times"></i> Supprimer</button>
+                </div>
+              </div>
             </div>
-          </div>
 
-        </div><!-- /.document-card -->
-      </main>
-    </div>
+            <div class="settings-card settings-card-half">
+              <div class="settings-card-title"><i class="fas fa-signature"></i> Signature</div>
+              <div class="settings-row">
+                <div class="settings-sig-upload">
+                  <div class="settings-sig-preview" id="settingsSigPreview">
+                    <i class="fas fa-signature"></i>
+                    <span>Aucune signature</span>
+                  </div>
+                  <button type="button" class="btn-settings-upload" id="settingsSigUploadBtn"><i class="fas fa-upload"></i> Importer une signature</button>
+                  <input type="file" id="settingsSigUpload" accept="image/*" style="display:none">
+                  <button type="button" class="btn-settings-remove" id="settingsSigRemove" style="display:none"><i class="fas fa-times"></i> Supprimer</button>
+                </div>
+              </div>
+            </div>
 
-    <!-- ===== VIEW: HISTORY LIST ===== -->
-    <div class="view-panel" id="viewHistory">
-      <div class="view-header">
-        <h2><i class="fas fa-history"></i> Historique des documents</h2>
-      </div>
-      <div class="history-filters">
-        <div class="search-wrap">
-          <i class="fas fa-search search-icon"></i>
-          <input type="search" id="historySearch" placeholder="Rechercher par client, n°, montant…">
-        </div>
-        <div class="filter-group">
-          <select id="filterType" class="filter-select">
-            <option value="">Tous les types</option>
-            <option value="devis">Devis</option>
-            <option value="facture">Facture</option>
-            <option value="proforma">Pro Forma</option>
-          </select>
-          <select id="filterStatus" class="filter-select">
-            <option value="">Tous les statuts</option>
-            <option value="draft">Brouillon</option>
-            <option value="sent">Envoyé</option>
-            <option value="accepted">Accepté</option>
-            <option value="invoiced">Facturé</option>
-            <option value="refused">Refusé</option>
-            <option value="expired">Expiré</option>
-          </select>
-        </div>
-      </div>
-      <div class="history-grid" id="historyList"></div>
-    </div>
+            <!-- Conditions -->
+            <div class="settings-card settings-card-full">
+              <div class="settings-card-title"><i class="fas fa-file-contract"></i> Conditions et mentions</div>
+              <div class="settings-row">
+                <label>Conditions de paiement</label>
+                <textarea id="settingPaymentTerms" rows="2" class="notes-textarea" placeholder="Ex: Paiement à réception de facture, sous 30 jours…"></textarea>
+              </div>
+              <div class="settings-row">
+                <label>Conditions générales</label>
+                <textarea id="settingGeneralTerms" rows="3" class="notes-textarea" placeholder="Ex: TVA applicable, pénalités de retard…"></textarea>
+              </div>
+              <div class="settings-row">
+                <label>Pied de page des documents</label>
+                <textarea id="settingFooter" rows="2" class="notes-textarea" placeholder="Ex: RCCM: BJ-COT-01-2024-B12-00123 | IFU: BJ123456789"></textarea>
+              </div>
+            </div>
 
-    <!-- ===== VIEW: CLIENTS ===== -->
-    <div class="view-panel" id="viewClients">
-      <div class="view-header">
-        <h2><i class="fas fa-address-book"></i> Carnet clients</h2>
-        <button type="button" class="btn-add-client-manual" id="btnAddClientManual">
-          <i class="fas fa-user-plus"></i> Nouveau client
-        </button>
-      </div>
-      <div class="clients-search-wrap">
-        <i class="fas fa-search search-icon"></i>
-        <input type="search" id="clientsSearch" placeholder="Rechercher un client…">
-      </div>
-      <div class="clients-grid" id="clientsGrid"></div>
-    </div>
-
-    <!-- ===== VIEW: SETTINGS ===== -->
-    <div class="view-panel" id="viewSettings">
-      <div class="view-header">
-        <h2><i class="fas fa-cog"></i> Paramètres & Branding</h2>
-      </div>
-      <div class="settings-grid">
-        <div class="settings-card">
-          <div class="settings-card-title"><i class="fas fa-palette"></i> Couleurs</div>
-          <div class="settings-row">
-            <label>Couleur principale</label>
-            <div class="color-input-wrap">
-              <input type="color" id="settingPrimaryColor" value="#1e3c72">
-              <span id="settingPrimaryColorHex">#1e3c72</span>
+            <!-- Sauvegarde -->
+            <div class="settings-actions">
+              <button type="button" class="btn-settings-save" id="btnSettingsSave"><i class="fas fa-save"></i> Enregistrer les informations</button>
             </div>
           </div>
-          <div class="settings-row">
-            <label>Couleur secondaire</label>
-            <div class="color-input-wrap">
-              <input type="color" id="settingSecondaryColor" value="#2a5298">
-              <span id="settingSecondaryColorHex">#2a5298</span>
-            </div>
-          </div>
-        </div>
-        <div class="settings-card">
-          <div class="settings-card-title"><i class="fas fa-font"></i> Typographie</div>
-          <div class="settings-row">
-            <label>Police</label>
-            <select id="settingFont" class="filter-select">
-              <option value="Inter">Inter (défaut)</option>
-              <option value="Roboto">Roboto</option>
-              <option value="Poppins">Poppins</option>
-              <option value="Lato">Lato</option>
-              <option value="Open Sans">Open Sans</option>
-            </select>
-          </div>
-        </div>
-        <div class="settings-card">
-          <div class="settings-card-title"><i class="fas fa-building"></i> Entreprise par défaut</div>
-          <div class="settings-row">
-            <label>Pied de page personnalisé</label>
-            <textarea id="settingFooter" rows="3" class="notes-textarea" style="font-size:0.85rem"
-              placeholder="Ex: RCCM: BJ-COT-01-2024-B12-00123 | TVA: BJ123456789"></textarea>
-          </div>
-        </div>
-        <div class="settings-card">
-          <div class="settings-card-title"><i class="fas fa-bell"></i> Rappels automatiques</div>
-          <div class="settings-row">
-            <label>Rappel expiration devis</label>
-            <div class="toggle-group">
-              <input type="checkbox" id="settingReminders" checked>
-              <label for="settingReminders">Activer les rappels</label>
-            </div>
-          </div>
-          <p class="settings-hint">Un rappel sera affiché 7 jours et 3 jours avant expiration d'un devis.</p>
-        </div>
+        </section>
       </div>
-      <div class="settings-actions">
-        <button type="button" class="btn-settings-save" id="btnSettingsSave">
-          <i class="fas fa-check"></i> Enregistrer les paramètres
-        </button>
-      </div>
-    </div>
-
-  </div><!-- /.main-area -->
-
-  <!-- ===== MOBILE BOTTOM NAV ===== -->
-  <nav class="mobile-bottom-nav" id="mobileBottomNav">
-    <button type="button" class="mbn-item active" data-view="editor">
-      <i class="fas fa-plus-circle"></i>
-      <span>Nouveau</span>
-    </button>
-    <button type="button" class="mbn-item" data-view="history">
-      <i class="fas fa-history"></i>
-      <span>Historique</span>
-    </button>
-    <button type="button" class="mbn-item" data-view="clients">
-      <i class="fas fa-users"></i>
-      <span>Clients</span>
-    </button>
-    <button type="button" class="mbn-item" id="mbnPdf">
-      <i class="fas fa-file-pdf"></i>
-      <span>PDF</span>
-    </button>
-    <button type="button" class="mbn-item" data-view="settings">
-      <i class="fas fa-cog"></i>
-      <span>Réglages</span>
-    </button>
-  </nav>
-
-  <!-- ===== TEMPLATE MODAL ===== -->
-  <div class="modal-overlay" id="templateModal" role="dialog" aria-label="Choisir un template">
-    <div class="modal-card">
-      <div class="modal-header">
-        <span><i class="fas fa-layer-group"></i> Choisir un template</span>
-        <button type="button" class="modal-close" id="btnCloseTemplate"><i class="fas fa-times"></i></button>
-      </div>
-      <p class="modal-subtitle">Sélectionnez un modèle pour pré-remplir le document</p>
-      <div class="template-grid" id="templateGrid"></div>
     </div>
   </div>
 
-  <!-- ===== CLIENT PICKER MODAL ===== -->
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <button type="button" class="mbn-item" data-view="dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></button>
+    <button type="button" class="mbn-item active" data-view="editor"><i class="fas fa-plus-circle"></i><span>Nouveau</span></button>
+    <button type="button" class="mbn-item" data-view="history"><i class="fas fa-history"></i><span>Historique</span></button>
+    <button type="button" class="mbn-item" id="mbnPdf"><i class="fas fa-file-pdf"></i><span>PDF</span></button>
+    <button type="button" class="mbn-item" data-view="settings"><i class="fas fa-building"></i><span>Entreprise</span></button>
+  </nav>
+
+  <!-- MODALS -->
   <div class="modal-overlay" id="clientPickerModal" role="dialog" aria-label="Choisir un client">
     <div class="modal-card modal-card-sm">
       <div class="modal-header">
         <span><i class="fas fa-address-book"></i> Choisir un client</span>
         <button type="button" class="modal-close" id="btnCloseClientPicker"><i class="fas fa-times"></i></button>
       </div>
-      <div class="search-wrap" style="margin:0 0 1rem">
+      <div class="search-wrap modal-search-wrap">
         <i class="fas fa-search search-icon"></i>
         <input type="search" id="clientPickerSearch" placeholder="Rechercher…">
       </div>
@@ -575,27 +699,24 @@
     </div>
   </div>
 
-  <!-- ===== EXPIRATION REMINDER BANNER ===== -->
   <div class="reminder-banner" id="reminderBanner" style="display:none">
     <i class="fas fa-exclamation-triangle"></i>
     <span id="reminderBannerText"></span>
     <button type="button" class="reminder-close" id="reminderClose"><i class="fas fa-times"></i></button>
   </div>
 
-  <!-- ===== TOAST ===== -->
   <div class="toast-notification" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- Datalists autocomplétion -->
   <datalist id="clientDatalist"></datalist>
   <datalist id="itemDatalist"></datalist>
 
-  <!-- ===== MODALE AUTHENTIFICATION ===== -->
+  <!-- AUTH -->
   <div class="auth-overlay" id="authOverlay">
     <div class="auth-card">
       <div class="auth-header">
         <div class="auth-logo"><i class="fas fa-file-invoice"></i></div>
         <h1 class="auth-title">ProGestion</h1>
-        <p class="auth-subtitle">Gérez vos devis et factures en toute simplicité</p>
+        <p class="auth-subtitle">Gérez vos devis et factures dans une interface premium.</p>
       </div>
       <div class="auth-tabs">
         <button type="button" class="auth-tab active" id="tabLogin">Se connecter</button>
@@ -644,11 +765,11 @@
           <i class="fas fa-spinner fa-spin btn-loader" style="display:none"></i>
         </button>
       </form>
-      <p class="auth-footer">Vos données sont sécurisées et privées.</p>
+      <p class="auth-footer">Vos données sont sécurisées, privées et synchronisées.</p>
     </div>
   </div>
 
-  <!-- ===== MODALE LIMITE ATTEINTE ===== -->
+  <!-- LIMIT MODAL -->
   <div class="limit-overlay" id="limitOverlay" style="display:none">
     <div class="limit-card">
       <div class="limit-icon"><i class="fas fa-lock"></i></div>
@@ -657,8 +778,7 @@
         Vous avez atteint la limite gratuite de <strong>10 documents</strong>.<br>
         Contactez l'administrateur pour passer à un plan illimité.
       </p>
-      <a href="https://wa.me/22968908277?text=Bonjour%2C%20j'ai%20atteint%20la%20limite%20de%2010%20documents%20sur%20ProGestion%20et%20je%20souhaite%20continuer."
-        target="_blank" rel="noopener noreferrer" class="btn-whatsapp-cta">
+      <a href="https://wa.me/22968908277?text=Bonjour%2C%20j'ai%20atteint%20la%20limite%20de%2010%20documents%20sur%20ProGestion%20et%20je%20souhaite%20continuer." target="_blank" rel="noopener noreferrer" class="btn-whatsapp-cta">
         <i class="fab fa-whatsapp"></i> Contacter via WhatsApp
       </a>
       <button type="button" class="btn-limit-close" id="btnLimitClose">Fermer</button>

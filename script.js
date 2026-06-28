@@ -1,20 +1,11 @@
 /**
- * ProGestion v2.0 — Script principal
- * Nouveautés MVP :
- *  - Sidebar collapsible + navigation par vues
- *  - Statuts de documents (Brouillon, Envoyé, Accepté, Facturé…)
- *  - Carnet clients réutilisable (localStorage)
- *  - Duplication de document
- *  - Templates prédéfinis
- *  - QR Code paiement Mobile Money
- *  - Signature image upload
- *  - Undo / Redo (stack 25 états)
- *  - Autosave indicator (dot + texte)
- *  - Breadcrumb dynamique
- *  - Rappels expiration devis
- *  - Partage WhatsApp
- *  - Paramètres branding (couleurs, police)
- *  - Mobile Bottom Nav
+ * ProGestion V3.0 — Script principal
+ * Version modernisée avec :
+ * - Suppression des templates, Excel, WhatsApp, Catalogue, QR Code
+ * - Mémoire des articles (autocomplétion)
+ * - Refonte des paramètres (fiche entreprise)
+ * - PDF premium
+ * - Design modernisé
  */
 (function () {
   'use strict';
@@ -56,10 +47,11 @@
   const MAX_UNDO   = 25;
 
   const STORAGE_KEYS = {
-    draft:    'pg_draft.v6',
-    counters: 'pg_counters.v6',
-    clients:  'pg_clients.v6',
-    settings: 'pg_settings.v6'
+    draft:    'pg_draft.v7',
+    counters: 'pg_counters.v7',
+    clients:  'pg_clients.v7',
+    settings: 'pg_settings.v7',
+    articles: 'pg_articles.v7'
   };
 
   const MODES = {
@@ -76,96 +68,6 @@
     refused:  { label: 'Refusé',    icon: '❌', cls: 'status-refused'  },
     expired:  { label: 'Expiré',    icon: '⏰', cls: 'status-expired'  }
   };
-
-  const TEMPLATES = [
-    {
-      id: 'service',
-      name: 'Prestation de service',
-      icon: 'fas fa-briefcase',
-      desc: 'Consulting, conseil, mission',
-      notes: 'Paiement sous 30 jours à compter de la réception de la facture.\nTout retard entraîne des pénalités de 1,5% par mois.',
-      items: [
-        { designation: 'Prestation de conseil et accompagnement', qty: 1, price: 0 },
-        { designation: 'Frais de déplacement (forfait)', qty: 1, price: 0 }
-      ]
-    },
-    {
-      id: 'produit',
-      name: 'Vente de produits',
-      icon: 'fas fa-box',
-      desc: 'Marchandises, équipements',
-      notes: 'Livraison sous 5 à 7 jours ouvrés après réception du paiement.\nRetours acceptés dans les 14 jours.',
-      items: [
-        { designation: 'Produit ref. —', qty: 1, price: 0 },
-        { designation: 'Frais de livraison', qty: 1, price: 0 }
-      ]
-    },
-    {
-      id: 'abonnement',
-      name: 'Abonnement mensuel',
-      icon: 'fas fa-sync-alt',
-      desc: 'Maintenance, SaaS, abonnement',
-      notes: 'Abonnement mensuel renouvelable tacitement. Résiliation avec préavis de 30 jours.',
-      items: [
-        { designation: 'Abonnement mensuel — Plan Standard', qty: 1, price: 0 },
-        { designation: 'Support technique prioritaire', qty: 1, price: 0 }
-      ]
-    },
-    {
-      id: 'transport',
-      name: 'Transport / Livraison',
-      icon: 'fas fa-truck',
-      desc: 'Fret, logistique, coursier',
-      notes: 'Prix incluant le carburant et les frais de manutention. Assurance marchandises non incluse.',
-      items: [
-        { designation: 'Transport de marchandises — Trajet aller', qty: 1, price: 0 },
-        { designation: 'Frais de manutention', qty: 1, price: 0 }
-      ]
-    },
-    {
-      id: 'btp',
-      name: 'BTP / Travaux',
-      icon: 'fas fa-hard-hat',
-      desc: 'Construction, rénovation, artisan',
-      notes: 'Devis valable 30 jours. Travaux débutant après versement d\'un acompte de 30%.\nGarantie décennale applicable.',
-      items: [
-        { designation: 'Main d\'œuvre — Forfait journalier', qty: 1, price: 0 },
-        { designation: 'Fournitures et matériaux', qty: 1, price: 0 },
-        { designation: 'Location de matériel', qty: 1, price: 0 }
-      ]
-    },
-    {
-      id: 'formation',
-      name: 'Formation',
-      icon: 'fas fa-chalkboard-teacher',
-      desc: 'Cours, ateliers, séminaires',
-      notes: 'Formation dispensée en présentiel ou en ligne selon accord. Certificat de participation fourni.',
-      items: [
-        { designation: 'Formation — Module 1 (demi-journée)', qty: 1, price: 0 },
-        { designation: 'Support de formation (PDF)', qty: 1, price: 0 }
-      ]
-    },
-    {
-      id: 'evenement',
-      name: 'Événementiel',
-      icon: 'fas fa-calendar-check',
-      desc: 'Organisation d\'événements',
-      notes: 'Devis non contractuel avant signature du bon de commande.\nAcompte de 50% requis à la réservation.',
-      items: [
-        { designation: 'Organisation et coordination', qty: 1, price: 0 },
-        { designation: 'Location salle / espace', qty: 1, price: 0 },
-        { designation: 'Traiteur / Restauration', qty: 1, price: 0 }
-      ]
-    },
-    {
-      id: 'vierge',
-      name: 'Document vierge',
-      icon: 'fas fa-file',
-      desc: 'Commencer de zéro',
-      notes: '',
-      items: [{ designation: '', qty: 1, price: 0 }]
-    }
-  ];
 
   /* ============================================================
      ÉTAT GLOBAL
@@ -185,7 +87,8 @@
     undoStack:     [],
     redoStack:     [],
     _undoLock:     false,
-    settings:      loadSettings()
+    settings:      loadSettings(),
+    isFavorite:    false
   };
 
   /* ============================================================
@@ -245,59 +148,245 @@
   }
 
   /* ============================================================
-     PARAMÈTRES / SETTINGS
+     PARAMÈTRES / SETTINGS (Fiche entreprise)
      ============================================================ */
-  function loadSettings() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.settings)) || defaultSettings(); }
-    catch { return defaultSettings(); }
+  function defaultSettings() {
+    return {
+      companyName: '',
+      managerName: '',
+      managerFirstname: '',
+      ifu: '',
+      rccm: '',
+      address: '',
+      city: '',
+      country: '',
+      phone: '',
+      email: '',
+      website: '',
+      defaultCurrency: 'CFA',
+      logo: null,
+      signature: null,
+      paymentTerms: '',
+      generalTerms: '',
+      footer: '',
+      vatRate: 18,
+      reminders: true
+    };
   }
 
-  function defaultSettings() {
-    return { primaryColor: '#1e3c72', secondaryColor: '#2a5298', font: 'Inter', footer: '', reminders: true };
+  function loadSettings() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.settings));
+      return { ...defaultSettings(), ...raw };
+    } catch {
+      return defaultSettings();
+    }
   }
 
   function saveSettings(s) {
     localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(s));
   }
 
-  function applySettingsToDOM(s) {
-    document.documentElement.style.setProperty('--primary',   s.primaryColor   || '#1e3c72');
-    document.documentElement.style.setProperty('--secondary', s.secondaryColor || '#2a5298');
-    document.body.style.fontFamily = `'${s.font || 'Inter'}', sans-serif`;
+  function applySettingsToEditor() {
+    const s = state.settings;
+    const set = (id, val) => { const el = $(id); if (el) el.value = val || ''; };
+    set('#emitterName', s.companyName);
+    set('#emitterAddress', s.address);
+    set('#emitterExtra', `${s.city || ''} ${s.country || ''}`.trim());
+    set('#emitterTel', s.phone);
+    set('#emitterEmail', s.email);
+    set('#currency', s.defaultCurrency || 'CFA');
+    set('#vatRate', s.vatRate || 18);
+    
+    if (s.logo) {
+      state.logoDataURL = s.logo;
+      const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
+      if (lp) { lp.src = s.logo; lp.style.display = 'block'; }
+      if (lph) lph.style.display = 'none';
+    }
+    
+    if (s.signature) {
+      state.sigImgDataURL = s.signature;
+      const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
+      if (sp) { sp.src = s.signature; sp.style.display = 'block'; }
+      if (sph) sph.style.display = 'none';
+      if (scb) scb.style.display = 'flex';
+    }
+    
+    if (s.paymentTerms) set('#docNotes', s.paymentTerms + (s.generalTerms ? '\n\n' + s.generalTerms : ''));
   }
 
   function populateSettingsPanel() {
     const s = state.settings;
-    const pc = $('#settingPrimaryColor');
-    const sc = $('#settingSecondaryColor');
-    const fn = $('#settingFont');
-    const ft = $('#settingFooter');
-    const rm = $('#settingReminders');
-    if (pc) { pc.value = s.primaryColor;   $('#settingPrimaryColorHex').textContent   = s.primaryColor; }
-    if (sc) { sc.value = s.secondaryColor; $('#settingSecondaryColorHex').textContent = s.secondaryColor; }
-    if (fn) fn.value = s.font || 'Inter';
-    if (ft) ft.value = s.footer || '';
-    if (rm) rm.checked = s.reminders !== false;
+    const set = (id, val) => { const el = $(id); if (el) el.value = val || ''; };
+    set('#settingCompanyName', s.companyName);
+    set('#settingManagerName', s.managerName);
+    set('#settingManagerFirstname', s.managerFirstname);
+    set('#settingIfu', s.ifu);
+    set('#settingRccm', s.rccm);
+    set('#settingAddress', s.address);
+    set('#settingCity', s.city);
+    set('#settingCountry', s.country);
+    set('#settingPhone', s.phone);
+    set('#settingEmail', s.email);
+    set('#settingWebsite', s.website);
+    set('#settingDefaultCurrency', s.defaultCurrency || 'CFA');
+    set('#settingVatRate', s.vatRate ?? 18);
+    set('#settingPaymentTerms', s.paymentTerms || '');
+    set('#settingGeneralTerms', s.generalTerms || '');
+    set('#settingFooter', s.footer || '');
+    if ($('#settingReminders')) $('#settingReminders').checked = s.reminders !== false;
+    
+    // Logo preview
+    const logoPreview = $('#settingsLogoPreview');
+    if (s.logo && logoPreview) {
+      logoPreview.innerHTML = `<img src="${s.logo}" alt="Logo">`;
+    } else if (logoPreview) {
+      logoPreview.innerHTML = '<i class="fas fa-building"></i>';
+    }
+    
+    // Signature preview
+    const sigPreview = $('#settingsSigPreview');
+    if (s.signature && sigPreview) {
+      sigPreview.innerHTML = `<img src="${s.signature}" alt="Signature">`;
+    } else if (sigPreview) {
+      sigPreview.innerHTML = '<i class="fas fa-signature"></i><span>Aucune signature</span>';
+    }
+    
+    // Show remove buttons if needed
+    const logoRemove = $('#settingsLogoRemove');
+    if (logoRemove) logoRemove.style.display = s.logo ? 'flex' : 'none';
+    const sigRemove = $('#settingsSigRemove');
+    if (sigRemove) sigRemove.style.display = s.signature ? 'flex' : 'none';
   }
 
   function bindSettingsEvents() {
-    const pc = $('#settingPrimaryColor');
-    const sc = $('#settingSecondaryColor');
-    if (pc) pc.addEventListener('input', () => { $('#settingPrimaryColorHex').textContent = pc.value; });
-    if (sc) sc.addEventListener('input', () => { $('#settingSecondaryColorHex').textContent = sc.value; });
-
+    // Logo upload
+    $('#settingsLogoUploadBtn')?.addEventListener('click', () => $('#settingsLogoUpload')?.click());
+    $('#settingsLogoUpload')?.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        state.settings.logo = ev.target.result;
+        const preview = $('#settingsLogoPreview');
+        if (preview) preview.innerHTML = `<img src="${ev.target.result}" alt="Logo">`;
+        const remove = $('#settingsLogoRemove');
+        if (remove) remove.style.display = 'flex';
+        toast('Logo importé', 'success');
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    $('#settingsLogoRemove')?.addEventListener('click', () => {
+      state.settings.logo = null;
+      const preview = $('#settingsLogoPreview');
+      if (preview) preview.innerHTML = '<i class="fas fa-building"></i>';
+      const remove = $('#settingsLogoRemove');
+      if (remove) remove.style.display = 'none';
+      toast('Logo supprimé', 'info');
+    });
+    
+    // Signature upload
+    $('#settingsSigUploadBtn')?.addEventListener('click', () => $('#settingsSigUpload')?.click());
+    $('#settingsSigUpload')?.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        state.settings.signature = ev.target.result;
+        const preview = $('#settingsSigPreview');
+        if (preview) preview.innerHTML = `<img src="${ev.target.result}" alt="Signature">`;
+        const remove = $('#settingsSigRemove');
+        if (remove) remove.style.display = 'flex';
+        toast('Signature importée', 'success');
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    $('#settingsSigRemove')?.addEventListener('click', () => {
+      state.settings.signature = null;
+      const preview = $('#settingsSigPreview');
+      if (preview) preview.innerHTML = '<i class="fas fa-signature"></i><span>Aucune signature</span>';
+      const remove = $('#settingsSigRemove');
+      if (remove) remove.style.display = 'none';
+      toast('Signature supprimée', 'info');
+    });
+    
+    // Save settings
     $('#btnSettingsSave')?.addEventListener('click', () => {
+      const get = (id) => $(id)?.value || '';
       state.settings = {
-        primaryColor:   $('#settingPrimaryColor')?.value   || '#1e3c72',
-        secondaryColor: $('#settingSecondaryColor')?.value || '#2a5298',
-        font:           $('#settingFont')?.value           || 'Inter',
-        footer:         $('#settingFooter')?.value         || '',
-        reminders:      $('#settingReminders')?.checked    !== false
+        ...state.settings,
+        companyName: get('#settingCompanyName'),
+        managerName: get('#settingManagerName'),
+        managerFirstname: get('#settingManagerFirstname'),
+        ifu: get('#settingIfu'),
+        rccm: get('#settingRccm'),
+        address: get('#settingAddress'),
+        city: get('#settingCity'),
+        country: get('#settingCountry'),
+        phone: get('#settingPhone'),
+        email: get('#settingEmail'),
+        website: get('#settingWebsite'),
+        defaultCurrency: get('#settingDefaultCurrency') || 'CFA',
+        vatRate: num($('#settingVatRate')?.value, 0) || 18,
+        paymentTerms: get('#settingPaymentTerms'),
+        generalTerms: get('#settingGeneralTerms'),
+        footer: get('#settingFooter'),
+        reminders: $('#settingReminders')?.checked !== false
       };
       saveSettings(state.settings);
-      applySettingsToDOM(state.settings);
-      toast('Paramètres enregistrés', 'success');
+      applySettingsToEditor();
+      toast('Informations enregistrées', 'success');
     });
+  }
+
+  /* ============================================================
+     MÉMOIRE DES ARTICLES
+     ============================================================ */
+  function getArticles() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.articles)) || []; }
+    catch { return []; }
+  }
+
+  function saveArticles(list) {
+    localStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(list.slice(0, 200)));
+  }
+
+  function addArticle(designation, qty, price) {
+    if (!designation || !designation.trim()) return;
+    const articles = getArticles();
+    const existing = articles.findIndex(a => a.designation.toLowerCase() === designation.toLowerCase());
+    const article = { designation: designation.trim(), qty: num(qty, 0) || 1, price: num(price, 0), uses: 1, lastUsed: new Date().toISOString() };
+    if (existing >= 0) {
+      articles[existing].uses += 1;
+      articles[existing].lastUsed = new Date().toISOString();
+      articles[existing].qty = article.qty;
+      articles[existing].price = article.price;
+    } else {
+      articles.unshift(article);
+    }
+    saveArticles(articles);
+    populateItemDatalist();
+  }
+
+  function populateItemDatalist() {
+    const dl = $('#itemDatalist');
+    if (!dl) return;
+    const articles = getArticles().slice(0, 80);
+    const curr = state.settings?.defaultCurrency || 'CFA';
+    dl.innerHTML = articles.map(item => 
+      `<option value="${escHtml(item.designation)}">${fmt(item.price)} ${curr}</option>`
+    ).join('');
+  }
+
+  function getArticleSuggestions(query) {
+    if (!query || query.length < 2) return [];
+    const q = query.toLowerCase();
+    return getArticles()
+      .filter(a => a.designation.toLowerCase().includes(q))
+      .slice(0, 8);
   }
 
   /* ============================================================
@@ -354,9 +443,9 @@
 
     grid.innerHTML = '';
     if (clients.length === 0) {
-      grid.innerHTML = `<div class="history-empty" style="grid-column:1/-1">
+      grid.innerHTML = `<div class="history-empty">
         <i class="fas fa-address-book"></i>
-        ${q ? 'Aucun client trouvé' : 'Aucun client enregistré. Enregistrez un client depuis le formulaire.'}
+        ${q ? 'Aucun client trouvé' : 'Aucun client enregistré.'}
       </div>`;
       return;
     }
@@ -380,7 +469,7 @@
         </div>
         <div class="cc-stats">
           <div class="cc-stat"><div class="cc-stat-label">Documents</div><div class="cc-stat-value">${docs.length}</div></div>
-          <div class="cc-stat"><div class="cc-stat-label">CA total</div><div class="cc-stat-value">${fmt(ca)} CFA</div></div>
+          <div class="cc-stat"><div class="cc-stat-label">CA total</div><div class="cc-stat-value">${fmt(ca)} ${state.settings?.defaultCurrency || 'CFA'}</div></div>
         </div>
         <div class="cc-actions">
           <button class="cc-btn cc-btn-new" data-id="${c.id}"><i class="fas fa-plus"></i> Nouveau doc</button>
@@ -389,7 +478,7 @@
       grid.appendChild(card);
     });
 
-    grid.addEventListener('click', e => {
+    grid.onclick = e => {
       const newBtn = e.target.closest('.cc-btn-new');
       const delBtn = e.target.closest('.cc-btn-del');
       if (newBtn) {
@@ -404,7 +493,7 @@
           toast('Client supprimé', 'warning');
         }
       }
-    }, { once: true });
+    };
   }
 
   function openClientPicker() {
@@ -492,7 +581,6 @@
     if ($('#docTitle'))     $('#docTitle').textContent = label;
     if ($('#docTypeBadge')) $('#docTypeBadge').textContent = label;
 
-    // Sidebar nav
     $$('.mode-nav-btn').forEach(b => b.classList.remove('active'));
     $('#navDevis')?.classList[mode === 'devis'    ? 'add' : 'remove']('active');
     $('#navFacture')?.classList[mode === 'facture'  ? 'add' : 'remove']('active');
@@ -527,12 +615,10 @@
       sidebar?.classList.toggle('collapsed');
     });
 
-    // Nav items
     $$('.sidebar-nav-item[data-view]').forEach(btn => {
       btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
 
-    // Mode nav buttons
     $$('.mode-nav-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         setMode(btn.dataset.mode);
@@ -540,16 +626,14 @@
       });
     });
 
-    $('#navTemplate')?.addEventListener('click', openTemplateModal);
     $('#navNew')?.addEventListener('click', () => {
-      if (confirm('Créer un nouveau document ? Le brouillon actuel sera conservé dans l\'historique si déjà sauvegardé.')) {
+      if (confirm('Créer un nouveau document ? Le brouillon actuel sera conservé dans l\'historique.')) {
         resetToNew(false);
         switchView('editor');
         toast('Nouveau document créé', 'success');
       }
     });
 
-    // Mobile bottom nav
     $$('.mbn-item[data-view]').forEach(btn => {
       btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
@@ -559,35 +643,53 @@
   function switchView(view) {
     state.currentView = view;
 
-    // Panels
     $$('.view-panel').forEach(p => p.classList.remove('active'));
-    const panelMap = { editor: 'viewEditor', history: 'viewHistory', clients: 'viewClients', settings: 'viewSettings' };
-    const panelId  = panelMap[view] || 'viewEditor';
-    $('#' + panelId)?.classList.add('active');
+    const panelMap = { dashboard: 'viewDashboard', editor: 'viewEditor', history: 'viewHistory', clients: 'viewClients', settings: 'viewSettings' };
+    $('#' + (panelMap[view] || 'viewEditor'))?.classList.add('active');
 
-    // Sidebar active state
     $$('.sidebar-nav-item').forEach(b => b.classList.remove('active'));
-    const navMap = { editor: 'navNew', history: 'navHistory', clients: 'navClients', settings: 'navSettings' };
+    const navMap = { dashboard: 'navDashboard', editor: 'navNew', history: 'navHistory', clients: 'navClients', settings: 'navSettings' };
     if (navMap[view]) $('#' + navMap[view])?.classList.add('active');
 
-    // Mobile bottom nav active
     $$('.mbn-item').forEach(b => b.classList.remove('active'));
     $$('.mbn-item[data-view="' + view + '"]').forEach(b => b.classList.add('active'));
 
-    // Load view content
-    if (view === 'history')  renderHistory();
-    if (view === 'clients')  { renderClientsView(); populateClientDatalist(); }
+    if (view === 'history') renderHistory();
+    if (view === 'clients') { renderClientsView(); populateClientDatalist(); }
+    if (view === 'dashboard') renderDashboard();
     if (view === 'settings') populateSettingsPanel();
 
     updateBreadcrumb(view);
+    updateWorkspaceHeader(view);
   }
 
   function updateBreadcrumb(view) {
     view = view || state.currentView;
     const el = $('#bcCurrent');
     if (!el) return;
-    const labels = { editor: `${MODES[state.mode]?.label || 'Document'} — ${$('#docNumber')?.value || '…'}`, history: 'Historique', clients: 'Carnet clients', settings: 'Paramètres' };
+    const labels = {
+      dashboard: 'Dashboard',
+      editor: `${MODES[state.mode]?.label || 'Document'} — ${$('#docNumber')?.value || '…'}`,
+      history: 'Historique',
+      clients: 'Carnet clients',
+      settings: 'Mon entreprise'
+    };
     el.textContent = labels[view] || 'Document';
+  }
+
+  function updateWorkspaceHeader(view) {
+    const title = $('#workspaceTitle');
+    const subtitle = $('#workspaceSubtitle');
+    const map = {
+      dashboard: ['Dashboard de gestion', 'Vos indicateurs, vos clients et vos documents en un coup d’œil.'],
+      editor: ['Création de document', 'Générez un devis ou une facture professionnelle en quelques clics.'],
+      history: ['Historique intelligent', 'Filtrez, dupliquez et relancez vos documents en quelques secondes.'],
+      clients: ['Carnet clients', 'Réutilisez vos contacts et gagnez en vitesse de saisie.'],
+      settings: ['Mon entreprise', 'Configurez vos informations pour les réutiliser automatiquement.']
+    };
+    const [t, s] = map[view || state.currentView] || map.editor;
+    if (title) title.textContent = t;
+    if (subtitle) subtitle.textContent = s;
   }
 
   /* ============================================================
@@ -782,7 +884,7 @@
       if (cell) cell.textContent = fmt(lt);
     }
 
-    const curr        = $('#currency')?.value || 'CFA';
+    const curr        = state.settings?.defaultCurrency || 'CFA';
     const discountOn  = $('#discountEnabled')?.checked || false;
     const discountRate = discountOn ? num($('#discountRate')?.value) : 0;
     const discount    = subtotal * discountRate / 100;
@@ -809,6 +911,9 @@
     set('totalDiscount', discount);
     set('totalTax',      tax);
     set('grandTotal',    total);
+
+    if ($('#bannerGrandTotal')) $('#bannerGrandTotal').textContent = `${fmt(total)} ${curr}`;
+    if ($('#bannerDocNumber')) $('#bannerDocNumber').textContent = $('#docNumber')?.value || '—';
 
     $$('.curr').forEach(el => { el.textContent = curr; });
   }
@@ -837,7 +942,7 @@
       docNumber:    $('#docNumber')?.value    || '',
       docDate:      $('#docDate')?.value      || todayISO(),
       docValidity:  $('#docValidity')?.value  || '',
-      currency:     $('#currency')?.value     || 'CFA',
+      currency:     $('#currency')?.value || state.settings?.defaultCurrency || 'CFA',
       vatEnabled:   $('#vatEnabled')?.checked ?? true,
       vatRate:      num($('#vatRate')?.value, 0),
       discountEnabled: $('#discountEnabled')?.checked || false,
@@ -901,22 +1006,19 @@
     const de = $('#discountEnabled'); if (de) de.checked  = data.discountEnabled || false;
     const dr = $('#discountRate');    if (dr) dr.value    = data.discountRate ?? 0;
 
-    // Logo
     const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
     if (data.logo && lp && lph) { lp.src = data.logo; lp.style.display = 'block'; lph.style.display = 'none'; }
     else if (lp && lph)         { lp.style.display = 'none'; lph.style.display = 'flex'; }
 
-    // Signature image
     const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
     if (data.sigImg && sp && sph) {
       sp.src = data.sigImg; sp.style.display = 'block'; sph.style.display = 'none';
       if (scb) scb.style.display = 'flex';
     } else if (sp && sph) {
-      sp.style.display = 'none'; sph.style.display = 'flex';
+      sp.src = ''; sp.style.display = 'none'; sph.style.display = 'flex';
       if (scb) scb.style.display = 'none';
     }
 
-    // Items
     const body = $('#itemsBody');
     if (body) {
       body.innerHTML = '';
@@ -929,6 +1031,7 @@
     setStatus(data.docStatus || 'draft');
     recalculate();
     populateClientDatalist();
+    populateItemDatalist();
   }
 
   /* ============================================================
@@ -982,9 +1085,8 @@
     const p = $('#placeOfIssue'); if (p) p.value = '';
     const sn = $('#signatoryName'); if (sn) sn.value = '';
     const sr = $('#signatoryRole'); if (sr) sr.value = '';
-    const c = $('#currency');    if (c) c.value = 'CFA';
     const ve = $('#vatEnabled'); if (ve) ve.checked = true;
-    const vr = $('#vatRate');    if (vr) vr.value = 18;
+    const vr = $('#vatRate');    if (vr) vr.value = state.settings?.vatRate || 18;
     const de = $('#discountEnabled'); if (de) de.checked = false;
     const dr = $('#discountRate');    if (dr) dr.value = 0;
 
@@ -993,7 +1095,7 @@
     if (sph) sph.style.display = 'flex';
     if (scb) scb.style.display = 'none';
 
-    const newNumber = consumeNextNumber('devis');
+    const newNumber = consumeNextNumber(state.mode || 'devis');
     const dn = $('#docNumber'); if (dn) dn.value = newNumber;
 
     const body = $('#itemsBody');
@@ -1007,6 +1109,9 @@
     state.undoStack = [];
     state.redoStack = [];
     updateUndoRedoBtns();
+    
+    // Appliquer les paramètres entreprise
+    applySettingsToEditor();
   }
 
   /* ============================================================
@@ -1029,7 +1134,7 @@
      HISTORIQUE
      ============================================================ */
   function historyKey() {
-    return state.currentUser ? `pg_history.v6.${state.currentUser.id}` : 'pg_history.v6.anon';
+    return state.currentUser ? `pg_history.v7.${state.currentUser.id}` : 'pg_history.v7.anon';
   }
 
   function getHistory() {
@@ -1127,10 +1232,10 @@
         </div>
         <div class="hc-amount">${fmt(ttc)} ${item.currency || 'CFA'} TTC</div>
         <div class="hc-actions">
-          <button class="hc-btn hc-btn-load" data-idx="${idx}"><i class="fas fa-folder-open"></i> Charger</button>
-          <button class="hc-btn hc-btn-dup"  data-idx="${idx}"><i class="fas fa-copy"></i> Dupliquer</button>
-          <button class="hc-btn hc-btn-pdf"  data-idx="${idx}"><i class="fas fa-file-pdf"></i></button>
-          <button class="hc-btn hc-btn-del"  data-idx="${idx}"><i class="fas fa-trash"></i></button>
+          <button class="hc-btn hc-btn-load" data-id="${item.id}"><i class="fas fa-folder-open"></i> Charger</button>
+          <button class="hc-btn hc-btn-dup"  data-id="${item.id}"><i class="fas fa-copy"></i> Dupliquer</button>
+          <button class="hc-btn hc-btn-pdf"  data-id="${item.id}"><i class="fas fa-file-pdf"></i></button>
+          <button class="hc-btn hc-btn-del"  data-id="${item.id}"><i class="fas fa-trash"></i></button>
         </div>`;
       grid.appendChild(card);
     });
@@ -1142,7 +1247,7 @@
       const delBtn  = e.target.closest('.hc-btn-del');
 
       if (loadBtn) {
-        const h = getHistory()[parseInt(loadBtn.dataset.idx, 10)];
+        const h = getHistory().find(d => d.id === loadBtn.dataset.id);
         if (h && confirm('Charger ce document ? Le brouillon actuel sera écrasé.')) {
           applyData(h);
           switchView('editor');
@@ -1150,17 +1255,17 @@
         }
       }
       if (dupBtn) {
-        const h = getHistory()[parseInt(dupBtn.dataset.idx, 10)];
+        const h = getHistory().find(d => d.id === dupBtn.dataset.id);
         if (h) { applyData(h); duplicateDocument(); }
       }
       if (pdfBtn) {
-        const h = getHistory()[parseInt(pdfBtn.dataset.idx, 10)];
+        const h = getHistory().find(d => d.id === pdfBtn.dataset.id);
         if (h) { applyData(h); switchView('editor'); setTimeout(exportPDF, 200); }
       }
       if (delBtn) {
-        const idx = parseInt(delBtn.dataset.idx, 10);
-        const h   = getHistory();
-        if (h[idx] && confirm(`Supprimer "${h[idx].docNumber || 'ce document'}" ?`)) {
+        const h = getHistory();
+        const idx = h.findIndex(d => d.id === delBtn.dataset.id);
+        if (idx >= 0 && confirm(`Supprimer "${h[idx].docNumber || 'ce document'}" ?`)) {
           const deleted = h[idx];
           h.splice(idx, 1);
           saveHistory(h);
@@ -1183,101 +1288,10 @@
   }
 
   /* ============================================================
-     TEMPLATES
-     ============================================================ */
-  function openTemplateModal() {
-    const modal = $('#templateModal');
-    if (!modal) return;
-    const grid = $('#templateGrid');
-    if (grid && grid.children.length === 0) {
-      TEMPLATES.forEach(tpl => {
-        const card = document.createElement('div');
-        card.className = 'template-card';
-        card.innerHTML = `<i class="${tpl.icon}"></i><div class="template-card-name">${tpl.name}</div><div class="template-card-desc">${tpl.desc}</div>`;
-        card.addEventListener('click', () => applyTemplate(tpl));
-        grid.appendChild(card);
-      });
-    }
-    modal.classList.add('open');
-  }
-
-  function applyTemplate(tpl) {
-    if (!confirm(`Appliquer le template "${tpl.name}" ? Le contenu actuel sera remplacé.`)) return;
-    const body = $('#itemsBody');
-    if (body) {
-      body.innerHTML = '';
-      tpl.items.forEach(it => body.appendChild(createRow({ id: uid(), ...it })));
-    }
-    const n = $('#docNotes'); if (n && tpl.notes) n.value = tpl.notes;
-    recalculate();
-    scheduleSave();
-    $('#templateModal').classList.remove('open');
-    toast(`Template "${tpl.name}" appliqué`, 'success');
-  }
-
-  /* ============================================================
-     QR CODE PAIEMENT
-     ============================================================ */
-  function bindQrEvents() {
-    const qrEnabled = $('#qrEnabled');
-    const qrConfig  = $('#qrConfig');
-    const btnGenQr  = $('#btnGenQr');
-
-    qrEnabled?.addEventListener('change', () => {
-      if (qrConfig) qrConfig.style.display = qrEnabled.checked ? 'flex' : 'none';
-      if (!qrEnabled.checked) { const d = $('#qrCodeDisplay'); if (d) d.innerHTML = ''; }
-    });
-
-    btnGenQr?.addEventListener('click', () => {
-      const phone    = $('#qrPhone')?.value?.trim();
-      const provider = $('#qrProvider')?.value || 'momo';
-      const total    = $('#grandTotal')?.textContent?.replace(/\s/g, '') || '0';
-      const currency = $('#currency')?.value || 'CFA';
-
-      if (!phone) { toast('Renseignez un numéro de paiement', 'warning'); return; }
-
-      const displayEl = $('#qrCodeDisplay');
-      if (!displayEl) return;
-      displayEl.innerHTML = '';
-
-      const labels = { momo: 'MTN MOMO', wave: 'Wave', airtel: 'Airtel Money', moov: 'Moov Money' };
-      const text   = `${labels[provider] || 'Mobile Money'} | ${phone} | ${total} ${currency}`;
-
-      try {
-        if (window.QRCode) {
-          new window.QRCode(displayEl, { text, width: 128, height: 128, colorDark: '#1e3c72', colorLight: '#ffffff' });
-          toast('QR Code généré', 'success');
-        } else {
-          displayEl.innerHTML = `<div style="font-size:0.8rem;color:var(--text-light);padding:8px">QR Code lib non disponible.<br><code>${text}</code></div>`;
-        }
-      } catch (err) {
-        console.error('QR:', err);
-        toast('Erreur génération QR', 'error');
-      }
-    });
-  }
-
-  /* ============================================================
-     PARTAGE WHATSAPP
-     ============================================================ */
-  function shareWhatsApp() {
-    const mode    = MODES[state.mode]?.label || 'Document';
-    const num_    = $('#docNumber')?.value || '—';
-    const client  = $('#clientName')?.value || 'Client';
-    const total   = $('#grandTotal')?.textContent || '0';
-    const curr    = $('#currency')?.value || 'CFA';
-    const emitter = $('#emitterName')?.value || 'Votre entreprise';
-
-    const msg = `Bonjour,\n\nVeuillez trouver ci-joint votre ${mode} N° ${num_}.\n\nMontant total : ${total} ${curr}\nÉmis par : ${emitter}\n\nMerci de votre confiance.`;
-    const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
-
-  /* ============================================================
      RAPPELS EXPIRATION
      ============================================================ */
   function checkExpiringDocs() {
-    if (!state.settings.reminders) return;
+    if (!state.settings?.reminders) return;
     const hist = getHistory();
     const expiring = hist.filter(d => {
       if (!d.docValidity || d.mode === 'facture') return false;
@@ -1296,7 +1310,7 @@
   }
 
   /* ============================================================
-     EXPORT PDF — premium
+     EXPORT PDF — PREMIUM
      ============================================================ */
   function exportPDF() {
     const body = $('#itemsBody');
@@ -1306,14 +1320,25 @@
       const { jsPDF } = window.jspdf;
       const doc  = new jsPDF({ unit: 'mm', format: 'a4' });
       const pw = 210, ml = 14, mr = 14, cw = pw - ml - mr;
-      const curr = $('#currency')?.value || 'CFA';
+      const curr = state.settings?.defaultCurrency || 'CFA';
       const mode = MODES[state.mode] || MODES.devis;
+      const s = state.settings || {};
 
+      // Couleurs premium
       const C = {
-        navy: [26,54,107], blue: [42,82,152], lightBg: [235,241,255],
-        rowAlt: [249,251,255], line: [210,220,240], textDk: [22,34,60],
-        textMd: [80,95,130], textLt: [140,155,185], white: [255,255,255],
-        green: [21,128,61], red: [185,28,28]
+        primary: [26, 58, 107],
+        primaryLight: [42, 82, 152],
+        secondary: [59, 130, 246],
+        accent: [235, 241, 255],
+        rowAlt: [249, 251, 255],
+        line: [210, 220, 240],
+        textDk: [22, 34, 60],
+        textMd: [80, 95, 130],
+        textLt: [140, 155, 185],
+        white: [255, 255, 255],
+        green: [21, 128, 61],
+        red: [185, 28, 28],
+        gold: [212, 175, 55]
       };
 
       const setFont  = (style = 'normal', size = 9) => { doc.setFont('helvetica', style); doc.setFontSize(size); };
@@ -1321,86 +1346,102 @@
       const setFill  = (rgb) => doc.setFillColor(...rgb);
       const setDraw  = (rgb, lw = 0.3) => { doc.setDrawColor(...rgb); doc.setLineWidth(lw); };
 
-      // HEADER
-      const emitterLines = [
-        $('#emitterAddress')?.value,
-        $('#emitterExtra')?.value,
-        [$('#emitterTel')?.value, $('#emitterEmail')?.value].filter(Boolean).join('   |   ')
-      ].filter(Boolean);
-
-      const rightLineCount = 3 + (mode.hasValidity && $('#docValidity')?.value ? 1 : 0);
-      const leftBottom  = 20 + emitterLines.length * 5;
-      const rightBottom = 14 + rightLineCount * 6 + 4;
-      const hdrH = Math.max(36, Math.max(leftBottom, rightBottom) + 6);
-
-      setFill(C.navy);
-      doc.rect(0, 0, pw, hdrH, 'F');
-
-      // Status badge in PDF
-      const stInfo = STATUS_LABELS[state.docStatus] || STATUS_LABELS.draft;
-      setFont('bold', 7);
-      setColor([200,215,245]);
-      doc.text(stInfo.label.toUpperCase(), pw - mr, hdrH - 4, { align: 'right' });
-
+      // === HEADER PREMIUM ===
+      const headerH = 48;
+      setFill(C.primary);
+      doc.rect(0, 0, pw, headerH, 'F');
+      
+      // Bande décorative
+      setFill(C.secondary);
+      doc.rect(0, headerH - 4, pw, 4, 'F');
+      
       // Logo
-      let emitterX = ml;
+      let logoX = ml;
       if (state.logoDataURL) {
         try {
           const imgFmt = state.logoDataURL.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-          const lSize  = Math.min(30, hdrH - 10);
-          const lY     = (hdrH - lSize) / 2;
+          const lSize = 32;
+          const lY = (headerH - lSize) / 2;
           setFill(C.white);
-          doc.roundedRect(ml, lY, lSize, lSize, 3, 3, 'F');
-          doc.addImage(state.logoDataURL, imgFmt, ml + 1, lY + 1, lSize - 2, lSize - 2, undefined, 'FAST');
-          emitterX = ml + lSize + 6;
+          doc.roundedRect(ml, lY, lSize, lSize, 4, 4, 'F');
+          doc.addImage(state.logoDataURL, imgFmt, ml + 2, lY + 2, lSize - 4, lSize - 4, undefined, 'FAST');
+          logoX = ml + lSize + 8;
         } catch (_) {}
       }
 
-      setColor(C.white); setFont('bold', 13);
-      const nameY = Math.min(14, hdrH / 3);
-      doc.text($('#emitterName')?.value || 'Votre entreprise', emitterX, nameY);
-      setFont('normal', 8); setColor([200,215,245]);
-      let ey = nameY + 6;
-      emitterLines.forEach(line => { doc.text(line, emitterX, ey); ey += 5; });
+      // Nom entreprise
+      setColor(C.white);
+      setFont('bold', 16);
+      const companyName = s.companyName || $('#emitterName')?.value || 'Votre entreprise';
+      doc.text(companyName, logoX, 18);
 
-      const rightX = pw - mr;
-      setFont('bold', 24); setColor(C.white);
-      doc.text(mode.label, rightX, 16, { align: 'right' });
-      setDraw([255,255,255], 0.3);
-      doc.line(rightX - 52, 19, rightX, 19);
-      setFont('normal', 8.5); setColor([200,215,245]);
-      doc.text(`N°  ${$('#docNumber')?.value || '—'}`, rightX, 25, { align: 'right' });
-      doc.text(`Date :  ${localDate($('#docDate')?.value)}`, rightX, 31, { align: 'right' });
+      // Infos entreprise
+      setFont('normal', 8);
+      setColor([200, 215, 245]);
+      let infoY = 24;
+      const infoLines = [
+        s.address || '',
+        [s.city, s.country].filter(Boolean).join(' '),
+        [s.phone, s.email].filter(Boolean).join('  |  '),
+        s.website || ''
+      ].filter(Boolean);
+      infoLines.forEach(line => {
+        doc.text(line, logoX, infoY);
+        infoY += 4.5;
+      });
+
+      // Type de document
+      setFont('bold', 22);
+      setColor(C.white);
+      doc.text(mode.label, pw - mr, 22, { align: 'right' });
+      
+      setDraw([255, 255, 255], 0.3);
+      doc.line(pw - mr - 60, 26, pw - mr, 26);
+      
+      // Numéro et dates
+      setFont('normal', 8.5);
+      setColor([200, 215, 245]);
+      doc.text(`N°  ${$('#docNumber')?.value || '—'}`, pw - mr, 32, { align: 'right' });
+      doc.text(`Date :  ${localDate($('#docDate')?.value)}`, pw - mr, 37, { align: 'right' });
       if (mode.hasValidity && $('#docValidity')?.value) {
-        doc.text(`Valide jusqu'au :  ${localDate($('#docValidity').value)}`, rightX, 37, { align: 'right' });
+        doc.text(`Valide jusqu'au :  ${localDate($('#docValidity').value)}`, pw - mr, 42, { align: 'right' });
       }
 
-      // CLIENT CARD
-      let y = hdrH + 8;
+      // === CLIENT CARD ===
+      let y = headerH + 8;
+      const clientName = $('#clientName')?.value || 'Client non renseigné';
       const clientLines = [
         $('#clientAddress')?.value,
         $('#clientExtra')?.value,
-        [$('#clientTel')?.value, $('#clientEmail')?.value].filter(Boolean).join('   |   '),
-        $('#clientSiret')?.value ? `SIRET / IFU : ${$('#clientSiret').value}` : null
+        [$('#clientTel')?.value, $('#clientEmail')?.value].filter(Boolean).join('  |  '),
+        $('#clientSiret')?.value ? `IFU / RCCM : ${$('#clientSiret').value}` : null
       ].filter(Boolean);
-      const cardH = Math.max(26, 16 + clientLines.length * 5 + 6);
-
-      setFill(C.lightBg); setDraw(C.line, 0.4);
+      
+      const cardH = Math.max(22, 14 + clientLines.length * 5 + 6);
+      setFill(C.accent);
+      setDraw(C.line, 0.3);
       doc.roundedRect(ml, y, cw, cardH, 4, 4, 'FD');
-      setFill(C.blue);
-      doc.roundedRect(ml, y, 22, cardH, 4, 4, 'F');
-      doc.rect(ml + 16, y, 6, cardH, 'F');
-      setColor(C.white); setFont('bold', 7);
-      doc.text('FACTURÉ À', ml + 11, y + cardH - 4, { angle: 90, align: 'left' });
-      const cx = ml + 26;
-      setColor(C.textDk); setFont('bold', 11);
-      doc.text($('#clientName')?.value || 'Client non renseigné', cx, y + 10);
-      setFont('normal', 8.5); setColor(C.textMd);
+      
+      // Badge "FACTURÉ À"
+      setFill(C.primary);
+      doc.roundedRect(ml, y, 18, cardH, 4, 4, 'F');
+      doc.rect(ml + 12, y, 6, cardH, 'F');
+      setColor(C.white);
+      setFont('bold', 6);
+      doc.text('FACTURÉ À', ml + 9, y + cardH/2 + 2, { angle: 90, align: 'center' });
+      
+      const cx = ml + 24;
+      setColor(C.textDk);
+      setFont('bold', 11);
+      doc.text(clientName, cx, y + 10);
+      setFont('normal', 8.5);
+      setColor(C.textMd);
       let cy2 = y + 17;
-      clientLines.forEach(line => { doc.text(line, cx, cy2); cy2 += 5; });
+      clientLines.forEach(line => { if (line) { doc.text(line, cx, cy2); cy2 += 5; } });
+      
       y += cardH + 8;
 
-      // TABLE
+      // === TABLEAU DES PRESTATIONS ===
       const tableRows = [];
       for (const tr of body.rows) {
         const q   = num(tr.querySelector('[data-field="qty"]')?.value);
@@ -1412,24 +1453,49 @@
       doc.autoTable({
         head: [[
           { content: 'Désignation',      styles: { halign: 'left'  } },
-          { content: 'Qté',              styles: { halign: 'right' } },
+          { content: 'Qté',              styles: { halign: 'center' } },
           { content: `Prix unitaire HT`, styles: { halign: 'right' } },
           { content: `Total HT`,         styles: { halign: 'right' } }
         ]],
         body: tableRows,
         startY: y,
         margin: { left: ml, right: mr },
-        styles: { fontSize: 9, cellPadding: { top: 4, bottom: 4, left: 5, right: 5 }, textColor: C.textDk, lineColor: C.line, lineWidth: 0.25 },
-        headStyles: { fillColor: C.navy, textColor: C.white, fontStyle: 'bold', fontSize: 8.5, cellPadding: { top: 5, bottom: 5, left: 5, right: 5 } },
+        styles: { 
+          fontSize: 9, 
+          cellPadding: { top: 5, bottom: 5, left: 6, right: 6 }, 
+          textColor: C.textDk, 
+          lineColor: C.line, 
+          lineWidth: 0.2 
+        },
+        headStyles: { 
+          fillColor: C.primary, 
+          textColor: C.white, 
+          fontStyle: 'bold', 
+          fontSize: 8.5, 
+          cellPadding: { top: 6, bottom: 6, left: 6, right: 6 } 
+        },
         alternateRowStyles: { fillColor: C.rowAlt },
-        columnStyles: { 0: { cellWidth: 'auto', halign: 'left' }, 1: { cellWidth: 18, halign: 'right' }, 2: { cellWidth: 38, halign: 'right' }, 3: { cellWidth: 38, halign: 'right' } },
-        didParseCell(data) { if (data.column.index === 3 && data.section === 'body') { data.cell.styles.fontStyle = 'bold'; data.cell.styles.textColor = C.navy; } }
+        columnStyles: { 
+          0: { cellWidth: 'auto', halign: 'left' }, 
+          1: { cellWidth: 16, halign: 'center' }, 
+          2: { cellWidth: 36, halign: 'right' }, 
+          3: { cellWidth: 36, halign: 'right' } 
+        },
+        didParseCell(data) { 
+          if (data.column.index === 3 && data.section === 'body') { 
+            data.cell.styles.fontStyle = 'bold'; 
+            data.cell.styles.textColor = C.primary; 
+          } 
+        }
       });
 
       y = doc.lastAutoTable.finalY;
 
-      // TOTAUX
-      const subtotal  = tableRows.reduce((s, _, i) => { const tr = body.rows[i]; return s + num(tr.querySelector('[data-field="qty"]')?.value) * num(tr.querySelector('[data-field="price"]')?.value); }, 0);
+      // === TOTAUX ===
+      const subtotal = tableRows.reduce((s, _, i) => { 
+        const tr = body.rows[i]; 
+        return s + num(tr.querySelector('[data-field="qty"]')?.value) * num(tr.querySelector('[data-field="price"]')?.value); 
+      }, 0);
       const discOn    = $('#discountEnabled')?.checked || false;
       const discRate  = discOn ? num($('#discountRate')?.value) : 0;
       const discount  = subtotal * discRate / 100;
@@ -1439,110 +1505,134 @@
       const tax       = afterDisc * vatRate / 100;
       const total     = afterDisc + tax;
 
-      y += 6;
-      const totX = ml + cw * 0.52, totW = cw * 0.48, colAmt = pw - mr, colLbl = totX + 5;
-      const totLines = [
+      y += 4;
+      const totX = ml + cw * 0.48;
+      const totW = cw * 0.52;
+      const colAmt = pw - mr;
+      const colLbl = totX + 6;
+
+      // Fond des totaux
+      setFill(C.accent);
+      setDraw(C.line, 0.3);
+      doc.roundedRect(totX, y, totW, 48, 4, 4, 'FD');
+
+      let ty = y + 8;
+      const rows = [
         { label: 'Sous-total HT', value: subtotal },
         discOn ? { label: `Remise (${discRate}%)`, value: -discount, red: true } : null,
-        vatOn  ? { label: `TVA (${vatRate}%)`,     value: tax } : null
+        vatOn ? { label: `TVA (${vatRate}%)`, value: tax } : null
       ].filter(Boolean);
 
-      const rowH = 6.5, totalH = totLines.length * rowH + 14;
-      setFill(C.lightBg); setDraw(C.line, 0.3);
-      doc.roundedRect(totX, y, totW, totalH, 3, 3, 'FD');
-
-      let ty2 = y + 7;
-      totLines.forEach(row => {
-        setFont('normal', 8.5); setColor(row.red ? C.red : C.textMd);
-        doc.text(row.label, colLbl, ty2);
-        doc.text(`${row.red && row.value < 0 ? '− ' : ''}${fmt(Math.abs(row.value))} ${curr}`, colAmt, ty2, { align: 'right' });
-        ty2 += rowH;
+      rows.forEach(row => {
+        setFont('normal', 8.5);
+        setColor(row.red ? C.red : C.textMd);
+        doc.text(row.label, colLbl, ty);
+        doc.text(`${row.red && row.value < 0 ? '− ' : ''}${fmt(Math.abs(row.value))} ${curr}`, colAmt, ty, { align: 'right' });
+        ty += 6.5;
       });
 
-      setDraw(C.blue, 0.5); doc.line(totX + 4, ty2 - 1, pw - mr - 4, ty2 - 1); ty2 += 3;
-      const ttcH = 9;
-      setFill(C.navy); doc.roundedRect(totX, ty2 - 5, totW, ttcH, 3, 3, 'F');
-      setFont('bold', 10.5); setColor(C.white);
-      doc.text('Total TTC', colLbl, ty2 + 1);
-      doc.text(`${fmt(total)} ${curr}`, colAmt, ty2 + 1, { align: 'right' });
-      ty2 += ttcH; y = ty2 + 10;
+      // Séparateur
+      setDraw(C.primary, 0.5);
+      doc.line(totX + 4, ty, pw - mr - 4, ty);
+      ty += 3;
 
-      // NOTES
+      // TOTAL TTC
+      setFill(C.primary);
+      doc.roundedRect(totX + 2, ty - 2, totW - 4, 11, 3, 3, 'F');
+      setFont('bold', 11);
+      setColor(C.white);
+      doc.text('TOTAL TTC', colLbl, ty + 5);
+      doc.text(`${fmt(total)} ${curr}`, colAmt, ty + 5, { align: 'right' });
+      ty += 12;
+
+      y = ty + 4;
+
+      // === NOTES ===
       const notes = $('#docNotes')?.value?.trim();
       if (notes) {
-        const notesY = doc.lastAutoTable.finalY + 6;
-        setFill([245,247,252]); setDraw(C.line, 0.3);
-        const notesW = cw * 0.5 - 4;
-        const notesLines = doc.splitTextToSize(notes, notesW - 12);
-        const notesH = notesLines.length * 4.5 + 14;
-        doc.roundedRect(ml, notesY, notesW, notesH, 3, 3, 'FD');
-        setFill(C.blue); doc.roundedRect(ml, notesY, notesW, 8, 3, 3, 'F');
-        doc.rect(ml, notesY + 4, notesW, 4, 'F');
-        setFont('bold', 7.5); setColor(C.white);
-        doc.text('NOTES & CONDITIONS', ml + 5, notesY + 5.5);
-        setFont('normal', 8); setColor(C.textMd);
-        doc.text(notesLines, ml + 5, notesY + 13);
-        y = Math.max(y, notesY + notesH + 8);
+        const noteW = cw * 0.6;
+        const noteLines = doc.splitTextToSize(notes, noteW - 10);
+        const noteH = Math.max(18, 10 + noteLines.length * 4.5);
+        setFill(C.accent);
+        setDraw(C.line, 0.3);
+        doc.roundedRect(ml, y, noteW, noteH, 4, 4, 'FD');
+        
+        setFill(C.primary);
+        doc.roundedRect(ml, y, noteW, 8, 4, 4, 'F');
+        doc.rect(ml, y + 4, noteW, 4, 'F');
+        setFont('bold', 7);
+        setColor(C.white);
+        doc.text('NOTES ET CONDITIONS', ml + 5, y + 5.5);
+        
+        setFont('normal', 8);
+        setColor(C.textMd);
+        doc.text(noteLines, ml + 5, y + 12);
+        y += noteH + 6;
       }
 
-      // QR CODE dans le PDF
-      const qrEnabled = $('#qrEnabled')?.checked;
-      const qrDisplay = $('#qrCodeDisplay');
-      if (qrEnabled && qrDisplay) {
-        const qrCanvas = qrDisplay.querySelector('canvas');
-        if (qrCanvas) {
-          try {
-            const qrData = qrCanvas.toDataURL('image/png');
-            const qrSize = 28;
-            const qrX = pw - mr - qrSize;
-            doc.addImage(qrData, 'PNG', qrX, doc.lastAutoTable.finalY + 6, qrSize, qrSize);
-            setFont('normal', 6.5); setColor(C.textLt);
-            doc.text('Scanner pour payer', qrX + qrSize / 2, doc.lastAutoTable.finalY + 6 + qrSize + 4, { align: 'center' });
-          } catch (_) {}
-        }
-      }
-
-      // SIGNATURE
+      // === SIGNATURE ===
       const signatoryName = $('#signatoryName')?.value?.trim() || '';
       const signatoryRole = $('#signatoryRole')?.value?.trim() || '';
-      const sigExtraH = (signatoryName ? 5 : 0) + (signatoryRole ? 5 : 0);
-      const sigBoxH = 28 + sigExtraH, sigBoxW = 80, sigY = y;
+      const sigBoxH = 30 + (signatoryName ? 6 : 0) + (signatoryRole ? 6 : 0);
+      const sigBoxW = 70;
+      const sigY = y;
 
-      setFill(C.lightBg); setDraw(C.line, 0.3);
-      doc.roundedRect(ml, sigY, sigBoxW, sigBoxH, 3, 3, 'FD');
-      setFont('bold', 7); setColor(C.textMd);
-      doc.text('CACHET ET SIGNATURE', ml + 4, sigY + 6);
+      setFill(C.accent);
+      setDraw(C.line, 0.3);
+      doc.roundedRect(ml, sigY, sigBoxW, sigBoxH, 4, 4, 'FD');
+      
+      setFont('bold', 7);
+      setColor(C.textMd);
+      doc.text('CACHET ET SIGNATURE', ml + 4, sigY + 5);
 
-      // Signature image dans le PDF
       if (state.sigImgDataURL) {
         try {
           const imgFmt = state.sigImgDataURL.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(state.sigImgDataURL, imgFmt, ml + 4, sigY + 8, sigBoxW - 10, 16, undefined, 'FAST');
+          doc.addImage(state.sigImgDataURL, imgFmt, ml + 4, sigY + 8, sigBoxW - 10, 14, undefined, 'FAST');
         } catch (_) {
-          setDraw(C.blue, 0.5); doc.line(ml + 4, sigY + 20, ml + sigBoxW - 6, sigY + 20);
+          setDraw(C.primary, 0.5);
+          doc.line(ml + 4, sigY + 18, ml + sigBoxW - 6, sigY + 18);
         }
       } else {
-        setDraw(C.blue, 0.5); doc.line(ml + 4, sigY + 20, ml + sigBoxW - 6, sigY + 20);
+        setDraw(C.primary, 0.5);
+        doc.line(ml + 4, sigY + 18, ml + sigBoxW - 6, sigY + 18);
       }
 
-      let sigTextY = sigY + 26;
-      if (signatoryName) { setFont('bold', 8.5); setColor(C.textDk); doc.text(signatoryName, ml + 4, sigTextY); sigTextY += 5; }
-      if (signatoryRole) { setFont('normal', 7.5); setColor(C.textMd); doc.text(signatoryRole, ml + 4, sigTextY); }
+      let sigTextY = sigY + 24;
+      if (signatoryName) {
+        setFont('bold', 8.5);
+        setColor(C.textDk);
+        doc.text(signatoryName, ml + 4, sigTextY);
+        sigTextY += 6;
+      }
+      if (signatoryRole) {
+        setFont('normal', 7.5);
+        setColor(C.textMd);
+        doc.text(signatoryRole, ml + 4, sigTextY);
+      }
 
       const place = $('#placeOfIssue')?.value;
       if (place) {
-        setFont('normal', 8); setColor(C.textMd);
-        doc.text(`Fait à ${place}, le ${new Date().toLocaleDateString('fr-FR')}`, ml + sigBoxW + 8, sigY + sigBoxH / 2 + 2);
+        setFont('normal', 8);
+        setColor(C.textMd);
+        doc.text(`Fait à ${place}, le ${new Date().toLocaleDateString('fr-FR')}`, ml + sigBoxW + 8, sigY + sigBoxH/2 + 2);
       }
 
-      // FOOTER
+      // === FOOTER ===
       const pageH = doc.internal.pageSize.height;
-      const footY = pageH - 8;
-      setFill(C.navy); doc.rect(0, footY - 4, pw, 12, 'F');
-      setFont('normal', 7); setColor([170,190,225]);
-      const footerTxt = state.settings?.footer || `${mode.label}  ·  N° ${$('#docNumber')?.value || '—'}  ·  ${$('#emitterName')?.value || ''}`;
-      doc.text(footerTxt, pw / 2, footY + 1, { align: 'center' });
-      doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, pw - mr, footY + 1, { align: 'right' });
+      const footY = pageH - 10;
+      setFill(C.primary);
+      doc.rect(0, footY - 4, pw, 12, 'F');
+      
+      setFont('normal', 7);
+      setColor([170, 190, 225]);
+      const footerTxt = s.footer || `${mode.label}  ·  N° ${$('#docNumber')?.value || '—'}  ·  ${s.companyName || ''}`;
+      doc.text(footerTxt, pw / 2, footY + 2, { align: 'center' });
+
+      // Numéro de page
+      setFont('normal', 6.5);
+      setColor([200, 210, 230]);
+      doc.text('Page 1/1', pw - mr, footY + 2, { align: 'right' });
 
       const filename = `${mode.label}_${$('#docNumber')?.value || 'sans-numero'}.pdf`;
       doc.save(filename);
@@ -1555,60 +1645,77 @@
   }
 
   /* ============================================================
-     EXPORT EXCEL
+     DASHBOARD
      ============================================================ */
-  function exportExcel() {
-    const body = $('#itemsBody');
-    if (!body || body.rows.length === 0) { toast('Ajoutez au moins une ligne', 'error'); return; }
-    try {
-      const curr = $('#currency')?.value || 'CFA';
-      const modeLabel = MODES[state.mode]?.label || 'DEVIS';
-      const wb = XLSX.utils.book_new();
-      const rows = [
-        [modeLabel],
-        [],
-        ['N°', $('#docNumber')?.value || '', 'Date', $('#docDate')?.value || ''],
-        ['Statut', STATUS_LABELS[state.docStatus]?.label || 'Brouillon'],
-        ['Émetteur', $('#emitterName')?.value || ''],
-        [],
-        ['CLIENT'],
-        [$('#clientName')?.value    || ''],
-        [$('#clientAddress')?.value || ''],
-        [],
-        ['Désignation', 'Qté', `Prix HT (${curr})`, `Total HT (${curr})`]
-      ];
+  function dashboardEmpty(message) {
+    return `<div class="dashboard-empty"><i class="fas fa-sparkles"></i><span>${message}</span></div>`;
+  }
 
-      let subtotal = 0;
-      for (const tr of body.rows) {
-        const q = num(tr.querySelector('[data-field="qty"]')?.value);
-        const p = num(tr.querySelector('[data-field="price"]')?.value);
-        rows.push([tr.querySelector('[data-field="designation"]')?.value || '', q, p, q * p]);
-        subtotal += q * p;
-      }
+  function renderDashboard() {
+    const hist = getHistory();
+    const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const greeting = $('#dashboardGreetingName');
+    if (greeting) greeting.textContent = state.currentUser?.email?.split('@')[0] || 'Utilisateur';
+    const label = $('#dashboardTodayLabel');
+    if (label) label.textContent = `Aujourd'hui, ${today}, gardez une lecture immédiate de votre activité.`;
 
-      const discOn   = $('#discountEnabled')?.checked || false;
-      const discRate = discOn ? num($('#discountRate')?.value) : 0;
-      const discount = subtotal * discRate / 100;
-      const afterDisc = subtotal - discount;
-      const vatOn    = $('#vatEnabled')?.checked || false;
-      const vatRate  = vatOn ? num($('#vatRate')?.value) : 0;
-      const tax      = afterDisc * vatRate / 100;
-      const total    = afterDisc + tax;
+    const devis = hist.filter(d => d.mode === 'devis').length;
+    const factures = hist.filter(d => d.mode === 'facture').length;
+    const revenue = hist.reduce((sum, d) => sum + computeTTC(d), 0);
+    const curr = state.settings?.defaultCurrency || 'CFA';
+    
+    if ($('#kpiTotalDocs')) $('#kpiTotalDocs').textContent = String(hist.length);
+    if ($('#kpiDevis')) $('#kpiDevis').textContent = String(devis);
+    if ($('#kpiFactures')) $('#kpiFactures').textContent = String(factures);
+    if ($('#kpiRevenue')) $('#kpiRevenue').textContent = `${fmt(revenue)} ${curr}`;
 
-      rows.push([]);
-      rows.push(['Sous-total HT', '', '', '', subtotal]);
-      if (discOn) rows.push([`Remise (${discRate}%)`, '', '', '', -discount]);
-      if (vatOn)  rows.push([`TVA (${vatRate}%)`, '', '', '', tax]);
-      rows.push(['Total TTC', '', '', '', total]);
+    // Graphique CA
+    const monthMap = new Map();
+    hist.forEach(doc => {
+      const key = (doc.docDate || todayISO()).slice(0, 7);
+      monthMap.set(key, (monthMap.get(key) || 0) + computeTTC(doc));
+    });
+    const revenueEntries = Array.from(monthMap.entries()).sort(([a], [b]) => a.localeCompare(b)).slice(-6);
+    const maxRevenue = Math.max(1, ...revenueEntries.map(([, value]) => value));
+    const revenueChart = $('#revenueChart');
+    if (revenueChart) {
+      revenueChart.innerHTML = revenueEntries.length
+        ? revenueEntries.map(([month, value]) => `<div class="chart-bar-col"><span class="chart-bar-label">${month.slice(5)}</span><div class="chart-bar-track"><div class="chart-bar-fill" style="height:${Math.max(8, (value / maxRevenue) * 100)}%"></div></div><strong>${fmt(value)}</strong></div>`).join('')
+        : dashboardEmpty('Aucun chiffre à représenter.');
+    }
 
-      const notes = $('#docNotes')?.value?.trim();
-      if (notes) { rows.push([]); rows.push(['Notes', notes]); }
+    // Donut
+    const totalDocs = Math.max(1, devis + factures + hist.filter(d => d.mode === 'proforma').length);
+    const proformas = hist.filter(d => d.mode === 'proforma').length;
+    const donut = $('#docsDonut');
+    const legend = $('#docsLegend');
+    if (donut) donut.style.background = `conic-gradient(var(--primary) 0 ${(devis / totalDocs) * 360}deg, var(--secondary) ${(devis / totalDocs) * 360}deg ${((devis + factures) / totalDocs) * 360}deg, rgba(15,23,42,.15) ${((devis + factures) / totalDocs) * 360}deg 360deg)`;
+    if (legend) legend.innerHTML = [
+      ['Devis', devis],
+      ['Factures', factures],
+      ['Pro Forma', proformas]
+    ].map(([label, value]) => `<div class="legend-item"><span>${label}</span><strong>${value}</strong></div>`).join('');
 
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, 'Document');
-      XLSX.writeFile(wb, `${modeLabel}_${$('#docNumber')?.value || 'sans-numero'}.xlsx`);
-      toast('Excel généré ✓', 'success');
-    } catch (err) { console.error('Excel:', err); toast('Erreur génération Excel', 'error'); }
+    // Documents récents
+    const recent = hist.slice(0, 5);
+    const recentWrap = $('#dashboardRecentDocs');
+    if (recentWrap) recentWrap.innerHTML = recent.length ? recent.map(doc => `<button class="dashboard-list-item" data-doc="${escHtml(doc.docNumber || '')}"><span><strong>${escHtml(doc.docNumber || 'Sans numéro')}</strong><small>${escHtml(doc.client?.name || 'Client non renseigné')}</small></span><strong>${fmt(computeTTC(doc))} ${doc.currency || curr}</strong></button>`).join('') : dashboardEmpty('Aucun document sauvegardé.');
+
+    // Top clients
+    const topClients = Object.values(hist.reduce((acc, doc) => {
+      const name = doc.client?.name || 'Client non renseigné';
+      acc[name] = acc[name] || { name, amount: 0, count: 0 };
+      acc[name].amount += computeTTC(doc);
+      acc[name].count += 1;
+      return acc;
+    }, {})).sort((a, b) => b.amount - a.amount).slice(0, 5);
+    const topClientsWrap = $('#dashboardTopClients');
+    if (topClientsWrap) topClientsWrap.innerHTML = topClients.length ? topClients.map(client => `<div class="dashboard-list-item static"><span><strong>${escHtml(client.name)}</strong><small>${client.count} document(s)</small></span><strong>${fmt(client.amount)} ${curr}</strong></div>`).join('') : dashboardEmpty('Ajoutez vos premiers clients.');
+
+    // Documents en attente
+    const pending = hist.filter(doc => ['draft', 'sent', 'expired'].includes(doc.docStatus)).slice(0, 5);
+    const pendingWrap = $('#dashboardPendingDocs');
+    if (pendingWrap) pendingWrap.innerHTML = pending.length ? pending.map(doc => `<div class="dashboard-list-item static"><span><strong>${escHtml(doc.docNumber || 'Sans numéro')}</strong><small>${STATUS_LABELS[doc.docStatus]?.label || 'Brouillon'} · ${escHtml(doc.client?.name || 'Client')}</small></span><strong>${fmt(computeTTC(doc))} ${doc.currency || curr}</strong></div>`).join('') : dashboardEmpty('Aucun document en attente.');
   }
 
   /* ============================================================
@@ -1628,10 +1735,7 @@
 
     // Topbar actions
     $('#btnArchive')?.addEventListener('click', archiveDocument);
-    $('#btnDuplicate')?.addEventListener('click', duplicateDocument);
-    $('#btnWhatsapp')?.addEventListener('click', shareWhatsApp);
     $('#btnPdf')?.addEventListener('click', exportPDF);
-    $('#btnExcel')?.addEventListener('click', exportExcel);
 
     // Add row
     $('#addRow')?.addEventListener('click', () => addRow({}, true));
@@ -1667,7 +1771,6 @@
     $('#discountEnabled')?.addEventListener('change', () => { recalculate(); scheduleSave(); });
     $('#vatRate')?.addEventListener('input',          () => { recalculate(); scheduleSave(); });
     $('#discountRate')?.addEventListener('input',     () => { recalculate(); scheduleSave(); });
-    $('#currency')?.addEventListener('input',         () => { recalculate(); scheduleSave(); });
 
     // All inputs → autosave
     const allInputs = [
@@ -1692,6 +1795,7 @@
         scheduleSave();
       };
       reader.readAsDataURL(file);
+      e.target.value = '';
     });
 
     // Signature image
@@ -1710,11 +1814,12 @@
         scheduleSave();
       };
       reader.readAsDataURL(file);
+      e.target.value = '';
     });
     $('#btnClearSig')?.addEventListener('click', () => {
       state.sigImgDataURL = null;
       const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
-      if (sp) { sp.src = '#'; sp.style.display = 'none'; }
+      if (sp) { sp.src = ''; sp.style.display = 'none'; }
       if (sph) sph.style.display = 'flex';
       if (scb) scb.style.display = 'none';
       scheduleSave();
@@ -1734,7 +1839,6 @@
     $('#btnSaveClient')?.addEventListener('click', saveCurrentClient);
     $('#btnPickClient')?.addEventListener('click', openClientPicker);
     $('#btnAddClientManual')?.addEventListener('click', () => {
-      // Switch to editor and clear client fields
       switchView('editor');
       ['#clientName','#clientAddress','#clientExtra','#clientSiret','#clientTel','#clientEmail']
         .forEach(id => { const el = $(id); if (el) el.value = ''; });
@@ -1745,10 +1849,6 @@
     $('#btnCloseClientPicker')?.addEventListener('click', () => $('#clientPickerModal')?.classList.remove('open'));
     $('#clientPickerModal')?.addEventListener('click', e => { if (e.target === $('#clientPickerModal')) $('#clientPickerModal').classList.remove('open'); });
     $('#clientPickerSearch')?.addEventListener('input', e => renderClientPickerList(e.target.value));
-
-    // Template modal
-    $('#btnCloseTemplate')?.addEventListener('click', () => $('#templateModal')?.classList.remove('open'));
-    $('#templateModal')?.addEventListener('click', e => { if (e.target === $('#templateModal')) $('#templateModal').classList.remove('open'); });
 
     // Reminder banner close
     $('#reminderClose')?.addEventListener('click', () => { const b = $('#reminderBanner'); if (b) b.style.display = 'none'; });
@@ -1781,13 +1881,90 @@
       });
     }
 
+    // Article autocompletion — dropdown temps réel
+    const articleDropdown = document.createElement('div');
+    articleDropdown.className = 'article-dropdown';
+    articleDropdown.id = 'articleDropdown';
+    document.body.appendChild(articleDropdown);
+
+    function showArticleDropdown(input, query) {
+      if (!query || query.length < 2) { articleDropdown.classList.remove('open'); return; }
+      const matches = getArticleSuggestions(query);
+      if (matches.length === 0) { articleDropdown.classList.remove('open'); return; }
+      const rect = input.getBoundingClientRect();
+      articleDropdown.style.left = rect.left + 'px';
+      articleDropdown.style.top = (rect.bottom + 4) + 'px';
+      articleDropdown.style.width = rect.width + 'px';
+      const curr = state.settings?.defaultCurrency || 'CFA';
+      articleDropdown.innerHTML = matches.map(a => `
+        <div class="article-dropdown-item" data-designation="${escHtml(a.designation)}" data-qty="${a.qty}" data-price="${a.price}">
+          <strong>${escHtml(a.designation)}</strong>
+          <span>${fmt(a.qty)} × ${fmt(a.price)} ${curr}</span>
+        </div>`).join('');
+      articleDropdown.classList.add('open');
+      articleDropdown.querySelectorAll('.article-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const row = input.closest('tr');
+          if (row) {
+            input.value = item.dataset.designation;
+            const qtyInput = row.querySelector('[data-field="qty"]');
+            const priceInput = row.querySelector('[data-field="price"]');
+            if (qtyInput) qtyInput.value = item.dataset.qty || 1;
+            if (priceInput) priceInput.value = item.dataset.price || 0;
+            recalculate(); scheduleSave();
+          }
+          articleDropdown.classList.remove('open');
+        });
+      });
+    }
+
+    $('#itemsBody')?.addEventListener('input', e => {
+      if (e.target.dataset?.field === 'designation') {
+        showArticleDropdown(e.target, e.target.value.trim());
+      }
+    });
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#articleDropdown') && !e.target.closest('[data-field="designation"]')) {
+        articleDropdown.classList.remove('open');
+      }
+    });
+
+    // Article memory — sauvegarde quand on quitte le champ
+    $('#itemsBody')?.addEventListener('focusout', function(e) {
+      const input = e.target.closest('[data-field="designation"]');
+      if (!input) return;
+      const designation = input.value.trim();
+      if (!designation) return;
+      const row = input.closest('tr');
+      if (!row) return;
+      const qty = num(row.querySelector('[data-field="qty"]')?.value, 0);
+      const price = num(row.querySelector('[data-field="price"]')?.value, 0);
+      addArticle(designation, qty, price);
+      articleDropdown.classList.remove('open');
+    }, true);
+
+    // Currency change
+    $('#currency')?.addEventListener('change', () => { recalculate(); scheduleSave(); });
+
+    // Dashboard actions
+    $('#dashboardCreateDoc')?.addEventListener('click', () => switchView('editor'));
+
+    // Click events: recent docs
+    document.addEventListener('click', e => {
+      const recentDoc = e.target.closest('[data-doc]');
+      if (recentDoc) {
+        const doc = getHistory().find(row => row.docNumber === recentDoc.dataset.doc);
+        if (doc) { applyData(doc); switchView('editor'); }
+      }
+    });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); archiveDocument(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
       if (e.key === 'Escape') {
-        $('#templateModal')?.classList.remove('open');
         $('#clientPickerModal')?.classList.remove('open');
       }
     });
@@ -1798,12 +1975,24 @@
      ============================================================ */
   async function syncDocumentToSupabase(data, isNew) {
     try {
-      const payload = { user_id: state.currentUser.id, mode: data.mode, doc_number: data.docNumber, doc_date: data.docDate || null, doc_status: data.docStatus || 'draft', client_name: data.client?.name || '', total_ttc: computeTTC(data), data };
+      const payload = { 
+        user_id: state.currentUser.id, 
+        mode: data.mode, 
+        doc_number: data.docNumber, 
+        doc_date: data.docDate || null, 
+        doc_status: data.docStatus || 'draft', 
+        client_name: data.client?.name || '', 
+        total_ttc: computeTTC(data), 
+        data 
+      };
       if (isNew) {
         const { error } = await supabase.from('documents').insert(payload);
         if (!error) { state.docCount++; updateCounterBadge(); }
       } else {
-        await supabase.from('documents').update({ ...payload, updated_at: new Date().toISOString() }).eq('user_id', state.currentUser.id).eq('doc_number', data.docNumber).eq('mode', data.mode);
+        await supabase.from('documents').update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('user_id', state.currentUser.id)
+          .eq('doc_number', data.docNumber)
+          .eq('mode', data.mode);
       }
     } catch (e) { console.error('Sync Supabase:', e); }
   }
@@ -1811,7 +2000,9 @@
   async function loadDocCountFromSupabase() {
     if (!state.currentUser) return;
     try {
-      const { count } = await supabase.from('documents').select('*', { count: 'exact', head: true }).eq('user_id', state.currentUser.id);
+      const { count } = await supabase.from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', state.currentUser.id);
       state.docCount = count || 0;
       updateCounterBadge();
     } catch (e) { console.error('Count:', e); }
@@ -1820,7 +2011,11 @@
   async function loadHistoryFromSupabase() {
     if (!state.currentUser) return;
     try {
-      const { data: rows, error } = await supabase.from('documents').select('data, created_at, updated_at').eq('user_id', state.currentUser.id).order('created_at', { ascending: false }).limit(100);
+      const { data: rows, error } = await supabase.from('documents')
+        .select('data, created_at, updated_at')
+        .eq('user_id', state.currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error || !rows?.length) return;
       const remoteHist = rows.map(r => ({ ...r.data, savedAt: r.updated_at || r.created_at }));
       saveHistory(remoteHist);
@@ -1831,7 +2026,10 @@
   async function deleteDocFromSupabase(docNumber, mode) {
     if (!state.currentUser) return;
     try {
-      await supabase.from('documents').delete().eq('user_id', state.currentUser.id).eq('doc_number', docNumber).eq('mode', mode);
+      await supabase.from('documents').delete()
+        .eq('user_id', state.currentUser.id)
+        .eq('doc_number', docNumber)
+        .eq('mode', mode);
       state.docCount = Math.max(0, state.docCount - 1);
       updateCounterBadge();
     } catch (e) { console.error('Delete:', e); }
@@ -1841,7 +2039,10 @@
     const pct = Math.min(100, (state.docCount / DOC_LIMIT) * 100);
     const bar  = $('#sdcBar');
     const lbl  = $('#sdcLabel');
-    if (bar) { bar.style.width = `${pct}%`; bar.style.background = pct >= 100 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)'; }
+    if (bar) { 
+      bar.style.width = `${pct}%`; 
+      bar.style.background = pct >= 100 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)'; 
+    }
     if (lbl) lbl.textContent = `${state.docCount} / ${DOC_LIMIT} documents`;
   }
 
@@ -1885,7 +2086,11 @@
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setAuthLoading('btnLogin', false);
       if (error) {
-        const msgs = { 'Invalid login credentials': 'Email ou mot de passe incorrect.', 'Email not confirmed': 'Veuillez confirmer votre email.', 'Too many requests': 'Trop de tentatives. Réessayez plus tard.' };
+        const msgs = { 
+          'Invalid login credentials': 'Email ou mot de passe incorrect.', 
+          'Email not confirmed': 'Veuillez confirmer votre email.', 
+          'Too many requests': 'Trop de tentatives. Réessayez plus tard.' 
+        };
         showAuthError('loginError', msgs[error.message] || error.message);
       }
     });
@@ -1960,7 +2165,6 @@
   function showApp() {
     const o = $('#authOverlay'); if (o) o.style.display = 'none';
 
-    // Sidebar user
     const su = $('#sidebarUser'); if (su) su.style.display = 'flex';
     const bl = $('#btnLogout');   if (bl) bl.style.display = 'flex';
     const sdc = $('#sidebarDocCounter'); if (sdc) sdc.style.display = 'block';
@@ -1971,44 +2175,47 @@
     loadDocCountFromSupabase();
     loadHistoryFromSupabase();
 
+    // Charger les paramètres
+    state.settings = loadSettings();
+    
+    applySettingsToEditor();
     loadDraft();
     recalculate();
     ensureOneRow();
     populateClientDatalist();
+    populateItemDatalist();
     updateHistoryBadge();
     checkExpiringDocs();
     snapshotState();
+    renderDashboard();
+    populateSettingsPanel();
+    updateWorkspaceHeader(state.currentView);
   }
 
   /* ============================================================
      INITIALISATION
      ============================================================ */
   async function init() {
-    // Apply stored settings immediately
-    applySettingsToDOM(state.settings);
-
+    // Charger les paramètres
+    state.settings = loadSettings();
+    
     const authOverlay = $('#authOverlay');
     if (authOverlay) authOverlay.style.display = 'flex';
 
-    // Set initial doc number preview
     const dn = $('#docNumber');
     if (dn && !dn.value) dn.placeholder = peekNextNumber('devis');
 
-    // Set today date
     const docDate = $('#docDate');
     if (docDate && !docDate.value) docDate.value = todayISO();
 
     const cd = $('#currentDate');
     if (cd) cd.textContent = new Date().toLocaleDateString('fr-FR');
 
-    // Bind all events
     bindSidebarEvents();
     bindEvents();
     bindAuthEvents();
-    bindQrEvents();
     bindSettingsEvents();
 
-    // Supabase auth
     try {
       supabase.auth.onAuthStateChange((_event, session) => onAuthStateChange(session));
       const { data, error } = await supabase.auth.getSession();
