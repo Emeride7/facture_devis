@@ -1424,7 +1424,8 @@
 
       SF('bold', 13);
       SC(...BLUE);
-      const cName = s.companyName || $('#emitterName')?.value || 'Votre entreprise';
+      // Priorité : champs éditeur (toujours à jour) → state.settings → défaut
+      const cName = $('#emitterName')?.value || s.companyName || 'Votre entreprise';
       doc.text(cName, ml + logoW, y + 6);
 
       SF('normal', 7.5);
@@ -1433,11 +1434,16 @@
       if (cSubtitle) doc.text(cSubtitle, ml + logoW, y + 11);
 
       const rightX = pw - mr;
+      // Lire depuis les champs éditeur en priorité
+      const eTel   = $('#emitterTel')?.value   || s.phone   || '';
+      const eEmail = $('#emitterEmail')?.value  || s.email   || '';
+      const eAddr  = $('#emitterAddress')?.value || s.address || '';
+      const eExtra = $('#emitterExtra')?.value  || [s.city, s.country].filter(Boolean).join(', ') || '';
       const coords = [
-        s.phone ? `Tel. ${s.phone}` : '',
-        s.email ? s.email : '',
-        s.website ? s.website : '',
-        [s.address, s.city, s.country].filter(Boolean).join(', ') || ''
+        eTel   ? `Tel. ${eTel}` : '',
+        eEmail || '',
+        s.website || '',
+        [eAddr, eExtra].filter(Boolean).join(', ') || ''
       ].filter(Boolean);
       let cy = y;
       coords.forEach(line => {
@@ -1682,7 +1688,7 @@
       SF('normal', 6.5);
       SC(...GRAY_MD);
       const footLines = [
-        s.footer || `${s.companyName || ''} - ${[s.address, s.city, s.country].filter(Boolean).join(', ') || ''}`,
+        s.footer || `${cName} - ${[eAddr, eExtra].filter(Boolean).join(', ') || [s.address, s.city, s.country].filter(Boolean).join(', ') || ''}`,
         s.ifu ? `IFU : ${s.ifu}` : '',
         s.rccm ? `RCCM : ${s.rccm}` : ''
       ].filter(Boolean);
