@@ -337,6 +337,7 @@
         reminders: $('#settingReminders')?.checked !== false
       };
       saveSettings(state.settings);
+      syncSettingsToSupabase(state.settings);
       applySettingsToEditor();
       renderDashboard();
       toast('Informations enregistrées', 'success');
@@ -370,6 +371,8 @@
     }
     saveArticles(articles);
     populateItemDatalist();
+    const saved = articles.find(a => a.designation.toLowerCase() === designation.toLowerCase());
+    if (saved) syncArticleToSupabase(saved);
   }
 
   function populateItemDatalist() {
@@ -421,6 +424,7 @@
     else { clients.unshift(clientData); }
     saveClients(clients);
     populateClientDatalist();
+    syncClientToSupabase(clientData);
     toast(existing >= 0 ? 'Client mis à jour' : 'Client enregistré', 'success');
   }
 
@@ -488,10 +492,12 @@
       }
       if (delBtn) {
         if (confirm('Supprimer ce client ?')) {
+          const target = getClients().find(x => x.id === delBtn.dataset.id);
           const list = getClients().filter(x => x.id !== delBtn.dataset.id);
           saveClients(list);
           renderClientsView();
           toast('Client supprimé', 'warning');
+          if (target) deleteClientFromSupabase(target.name);
         }
       }
     };
@@ -2102,6 +2108,161 @@
     } catch (e) { console.error('Delete:', e); }
   }
 
+  /* ============================================================
+     SUPABASE — SYNC PARAMÈTRES (fiche entreprise)
+     ============================================================ */
+  async function syncSettingsToSupabase(s) {
+    if (!state.currentUser) return;
+    try {
+      const payload = {
+        user_id: state.currentUser.id,
+        name: s.companyName || '',
+        logo_data: s.logo || null,
+        signature_data: s.signature || null,
+        address: s.address || null,
+        city: s.city || null,
+        country: s.country || null,
+        phone: s.phone || null,
+        email: s.email || null,
+        website: s.website || null,
+        ifu: s.ifu || null,
+        rccm: s.rccm || null,
+        manager_name: s.managerName || null,
+        manager_firstname: s.managerFirstname || null,
+        default_vat_rate: s.vatRate ?? 18,
+        default_currency: s.defaultCurrency || 'CFA',
+        payment_terms: s.paymentTerms || null,
+        general_terms: s.generalTerms || null,
+        footer: s.footer || null,
+        reminders: s.reminders !== false,
+        updated_at: new Date().toISOString()
+      };
+      await supabase.from('company_info').upsert(payload, { onConflict: 'user_id' });
+    } catch (e) { console.error('Sync settings Supabase:', e); }
+  }
+
+  async function loadSettingsFromSupabase() {
+    if (!state.currentUser) return;
+    try {
+      const { data, error } = await supabase.from('company_info')
+        .select('*')
+        .eq('user_id', state.currentUser.id)
+        .maybeSingle();
+      if (error || !data) return;
+      state.settings = {
+        ...state.settings,
+        companyName: data.name || '',
+        managerName: data.manager_name || '',
+        managerFirstname: data.manager_firstname || '',
+        ifu: data.ifu || '',
+        rccm: data.rccm || '',
+        address: data.address || '',
+        city: data.city || '',
+        country: data.country || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        website: data.website || '',
+        defaultCurrency: data.default_currency || 'CFA',
+        logo: data.logo_data || null,
+        signature: data.signature_data || null,
+        paymentTerms: data.payment_terms || '',
+        generalTerms: data.general_terms || '',
+        footer: data.footer || '',
+        vatRate: data.default_vat_rate ?? 18,
+        reminders: data.reminders !== false
+      };
+      saveSettings(state.settings);
+    } catch (e) { console.error('Load settings Supabase:', e); }
+  }
+
+  /* ============================================================
+     SUPABASE — SYNC CLIENTS
+     ============================================================ */
+  async function syncClientToSupabase(c) {
+    if (!state.currentUser) return;
+    try {
+      await supabase.from('clients_favorites').upsert({
+        user_id: state.currentUser.id,
+        name: c.name,
+        email: c.email || null,
+        phone: c.tel || null,
+        address: c.address || null,
+        city: c.extra || null,
+        siret: c.siret || null,
+        last_used: c.savedAt || new Date().toISOString()
+      }, { onConflict: 'user_id,name' });
+    } catch (e) { console.error('Sync client Supabase:', e); }
+  }
+
+  async function deleteClientFromSupabase(name) {
+    if (!state.currentUser || !name) return;
+    try {
+      await supabase.from('clients_favorites').delete()
+        .eq('user_id', state.currentUser.id)
+        .eq('name', name);
+    } catch (e) { console.error('Delete client Supabase:', e); }
+  }
+
+  async function loadClientsFromSupabase() {
+    if (!state.currentUser) return;
+    try {
+      const { data: rows, error } = await supabase.from('clients_favorites')
+        .select('*')
+        .eq('user_id', state.currentUser.id)
+        .order('last_used', { ascending: false })
+        .limit(500);
+      if (error || !rows) return;
+      const remoteClients = rows.map(r => ({
+        id:      r.id,
+        name:    r.name,
+        address: r.address || '',
+        extra:   r.city || '',
+        siret:   r.siret || '',
+        tel:     r.phone || '',
+        email:   r.email || '',
+        savedAt: r.last_used || r.created_at
+      }));
+      saveClients(remoteClients);
+    } catch (e) { console.error('Load clients Supabase:', e); }
+  }
+
+  /* ============================================================
+     SUPABASE — SYNC MÉMOIRE DES ARTICLES
+     ============================================================ */
+  async function syncArticleToSupabase(a) {
+    if (!state.currentUser) return;
+    try {
+      await supabase.from('article_memory').upsert({
+        user_id: state.currentUser.id,
+        designation: a.designation,
+        qty: a.qty,
+        price: a.price,
+        uses: a.uses,
+        last_used: a.lastUsed
+      }, { onConflict: 'user_id,designation' });
+    } catch (e) { console.error('Sync article Supabase:', e); }
+  }
+
+  async function loadArticlesFromSupabase() {
+    if (!state.currentUser) return;
+    try {
+      const { data: rows, error } = await supabase.from('article_memory')
+        .select('*')
+        .eq('user_id', state.currentUser.id)
+        .order('last_used', { ascending: false })
+        .limit(200);
+      if (error || !rows) return;
+      const remoteArticles = rows.map(r => ({
+        designation: r.designation,
+        qty:      r.qty ?? 1,
+        price:    r.price ?? 0,
+        uses:     r.uses ?? 1,
+        lastUsed: r.last_used
+      }));
+      saveArticles(remoteArticles);
+    } catch (e) { console.error('Load articles Supabase:', e); }
+  }
+
   function updateCounterBadge() {
     const pct = Math.min(100, (state.docCount / DOC_LIMIT) * 100);
     const bar  = $('#sdcBar');
@@ -2229,7 +2390,7 @@
     if (sdc) sdc.style.display = 'none';
   }
 
-  function showApp() {
+  async function showApp() {
     const o = $('#authOverlay'); if (o) o.style.display = 'none';
 
     const su = $('#sidebarUser'); if (su) su.style.display = 'flex';
@@ -2242,9 +2403,15 @@
     loadDocCountFromSupabase();
     loadHistoryFromSupabase();
 
-    // Charger les paramètres
+    // Charger les paramètres locaux, puis écraser avec la version cloud si elle existe
+    // (ce qui permet de retrouver ses données sur un autre appareil)
     state.settings = loadSettings();
-    
+    await Promise.all([
+      loadSettingsFromSupabase(),
+      loadClientsFromSupabase(),
+      loadArticlesFromSupabase()
+    ]);
+
     applySettingsToEditor();
     loadDraft();
     recalculate();
