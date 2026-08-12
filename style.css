@@ -3,25 +3,34 @@
    Architecture : Interface moderne et professionnelle
    ============================================================ */
 
-/* ===== VARIABLES ===== */
+/* ===== VARIABLES =====
+   Direction : "Registre" — inspirée des livres comptables et tampons
+   encreurs. Fond papier chaud, encre bleu-nuit, rouge tampon pour les
+   alertes. Le logo/les couleurs de marque du client restent neutres :
+   cette palette ne concerne que le chrome de l'application (barre
+   latérale, cartes, boutons), jamais le contenu du document exporté. */
 :root {
-  --primary:       #1a3a6b;
-  --primary-light: #2a5298;
-  --secondary:     #3b82f6;
-  --accent:        #e8eeff;
-  --accent-dark:   #d2daf8;
-  --border:        #d0d9f0;
-  --text-light:    #6b7a99;
-  --text-dark:     #1a2b3c;
-  --danger:        #dc2626;
-  --success:       #16a34a;
-  --warning:       #f59e0b;
-  --shadow:        0 4px 20px rgba(0,0,0,0.08);
-  --shadow-hover:  0 8px 30px rgba(0,0,0,0.12);
-  --shadow-card:   0 2px 12px rgba(0,0,0,0.06);
-  --radius:        16px;
-  --radius-sm:     10px;
-  --radius-xs:     6px;
+  --primary:       #1e3a5f;   /* bleu encre — accent principal du chrome */
+  --primary-light: #2c5a82;   /* bleu encre clair — dégradés, hover */
+  --secondary:     #3b6ea5;   /* bleu encre moyen — liens, focus */
+  --accent:        #efe8d8;   /* parchemin clair — fonds de survol/actifs */
+  --accent-dark:   #e3d9be;   /* parchemin soutenu — bordures d'accent */
+  --border:        #e4dfd1;   /* bordure papier */
+  --text-light:    #7c7361;   /* gris chaud — texte secondaire */
+  --text-dark:     #1a1f2b;   /* encre — texte principal */
+  --danger:        #b23a32;   /* rouge tampon — refus/erreur */
+  --success:       #2f6b4f;   /* vert sobre — accepté/payé */
+  --warning:       #c17817;   /* ambre — en attente/expire bientôt */
+  --paper:         #faf8f3;   /* fond papier chaud de l'application */
+  --font-display:  'Source Serif 4', Georgia, serif;
+  --font-body:      'Inter', sans-serif;
+  --font-mono:      'IBM Plex Mono', 'Courier New', monospace;
+  --shadow:        0 4px 20px rgba(26,31,43,0.10);
+  --shadow-hover:  0 8px 30px rgba(26,31,43,0.14);
+  --shadow-card:   0 2px 10px rgba(26,31,43,0.07);
+  --radius:        10px;
+  --radius-sm:     7px;
+  --radius-xs:     4px;
   --sidebar-w:     260px;
   --sidebar-w-col: 68px;
   --topbar-h:      72px;
@@ -43,14 +52,42 @@
 
 /* ===== BASE ===== */
 body {
-  font-family: 'Inter', sans-serif;
-  background: #f0f4fb;
+  font-family: var(--font-body);
+  background: var(--paper);
   color: var(--text-dark);
   line-height: 1.55;
   min-height: 100vh;
   display: flex;
   overflow: hidden;
   font-size: 14px;
+}
+
+/* Titres — serif de registre, utilisée avec retenue */
+h1, h2, h3,
+.doc-title-display, .auth-title, .limit-title,
+.dashboard-hero h2, .view-header h2,
+.workspace-intro h1, .section-title-row h3,
+.card-head h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* Eyebrows — étiquette de registre, mono + petites capitales */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* Chiffres, montants, numéros de document — mono, comme tenus au
+   composteur. Aligne parfaitement les colonnes de montants. */
+#docNumber, #bannerDocNumber, #bannerGrandTotal,
+.metric-chip strong, .kpi-card strong,
+#grandTotal, #subtotal, #totalDiscount, #totalTax, #vatRateDisplay, #discountRateDisplay,
+.hc-amount, .hc-number, .totals-table .amount-cell, .totals-highlight strong,
+.ref-input, .cc-stat-value, .dashboard-list-item strong,
+.chart-bar-col strong, .legend-item strong, .sdc-bar-wrap + *,
+.sidebar-counter-pill, #sdcLabel {
+  font-family: var(--font-mono);
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -65,7 +102,7 @@ body {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
   height: 100vh;
-  background: linear-gradient(180deg, #0f1f3d 0%, #1a3a6b 100%);
+  background: linear-gradient(180deg, #10192b 0%, #1e3a5f 100%);
   color: white;
   display: flex;
   flex-direction: column;
@@ -385,7 +422,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f0f4fb;
+  background: var(--paper);
 }
 
 .page-scroll {
@@ -519,13 +556,13 @@ body {
   background: var(--success);
   color: white;
 }
-.btn-save-top:hover { background: #15803d; }
+.btn-save-top:hover { background: #1f4d38; }
 
 .btn-pdf {
   background: var(--danger);
   color: white;
 }
-.btn-pdf:hover { background: #b91c1c; }
+.btn-pdf:hover { background: #8a2a24; }
 
 /* ============================================================
    VIEWS
@@ -641,7 +678,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
-  background: #f8fafd;
+  background: #f5f1e6;
   border-radius: 10px;
   border: 1px solid var(--border);
   flex-wrap: wrap;
@@ -658,11 +695,12 @@ body {
 .doc-type-badge {
   background: var(--primary);
   color: white;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   padding: 4px 12px;
-  border-radius: 20px;
+  border-radius: 3px;
 }
 
 .dsb-label {
@@ -673,7 +711,7 @@ body {
 
 .doc-status-select {
   border: 1.5px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   padding: 4px 12px;
   font-size: 0.78rem;
   font-family: inherit;
@@ -684,7 +722,7 @@ body {
   transition: border-color 0.2s;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7a99'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237c7361'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   padding-right: 28px;
@@ -694,8 +732,8 @@ body {
 
 .doc-status-select[data-val="draft"]    { border-color: var(--border); }
 .doc-status-select[data-val="sent"]     { border-color: var(--secondary); color: var(--secondary); }
-.doc-status-select[data-val="accepted"] { border-color: var(--success); color: #15803d; }
-.doc-status-select[data-val="invoiced"] { border-color: #0891b2; color: #0891b2; }
+.doc-status-select[data-val="accepted"] { border-color: var(--success); color: #1f4d38; }
+.doc-status-select[data-val="invoiced"] { border-color: #2b6777; color: #2b6777; }
 .doc-status-select[data-val="refused"]  { border-color: var(--danger); color: var(--danger); }
 .doc-status-select[data-val="expired"]  { border-color: var(--warning); color: #92400e; }
 
@@ -1043,7 +1081,7 @@ body {
   background: transparent;
   border: 1.5px dashed var(--secondary);
   color: var(--secondary);
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   padding: 5px 14px;
   font-size: 0.78rem;
   font-weight: 600;
@@ -1100,7 +1138,7 @@ body {
 }
 
 .items-table tbody tr:last-child td { border-bottom: none; }
-.items-table tbody tr:hover td { background: #f5f7ff; }
+.items-table tbody tr:hover td { background: #f5f1e6; }
 
 .items-table td.col-qty,
 .items-table td.col-price,
@@ -1164,7 +1202,7 @@ tr.dragging { opacity: 0.4; }
 .btn-add-row {
   margin-top: 0.5rem;
   padding: 0.4rem 1rem;
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   border: 2px dashed var(--secondary);
   background: transparent;
   color: var(--secondary);
@@ -1319,7 +1357,7 @@ tr.dragging { opacity: 0.4; }
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 1rem;
-  background: #f8fafd;
+  background: #f5f1e6;
   border-radius: var(--radius-sm);
 }
 
@@ -1443,7 +1481,7 @@ tr.dragging { opacity: 0.4; }
 
 .filter-select {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   padding: 6px 14px;
   font-size: 0.8rem;
   font-family: inherit;
@@ -1483,32 +1521,41 @@ tr.dragging { opacity: 0.4; }
 .hc-type-badge {
   display: inline-flex;
   align-items: center;
-  background: var(--accent);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 0.65rem;
+  background: var(--primary);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
   font-weight: 700;
-  color: var(--primary);
-  letter-spacing: 0.3px;
+  color: white;
+  letter-spacing: 0.06em;
 }
 
+/* Badges de statut façon tampon encreur — élément signature de
+   l'interface : contour épais, fond transparent, légère rotation,
+   comme un vrai tampon apposé sur un document papier. */
 .hc-status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 0.65rem;
+  gap: 4px;
+  border-radius: 3px;
+  padding: 2px 9px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1.5px solid currentColor;
+  background: transparent;
+  transform: rotate(-2deg);
 }
 
-.status-draft    { background: #f1f5f9; color: #64748b; }
-.status-sent     { background: #eff6ff; color: var(--secondary); }
-.status-accepted { background: #f0fdf4; color: #15803d; }
-.status-invoiced { background: #ecfeff; color: #0891b2; }
-.status-refused  { background: #fff1f2; color: var(--danger); }
-.status-expired  { background: #fffbeb; color: #92400e; }
+.status-draft    { color: #7c7361; }
+.status-sent     { color: #2c5a82; }
+.status-accepted { color: #1f4d38; }
+.status-invoiced { color: #2b6777; }
+.status-refused  { color: #8a2a24; }
+.status-expired  { color: #92400e; }
 
 .hc-number { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
 .hc-client { font-size: 0.82rem; color: var(--text-light); display: flex; align-items: center; gap: 4px; }
@@ -1530,7 +1577,7 @@ tr.dragging { opacity: 0.4; }
   min-width: 60px;
   padding: 5px 8px;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--radius-xs);
   font-weight: 600;
   font-size: 0.72rem;
   font-family: inherit;
@@ -1546,7 +1593,7 @@ tr.dragging { opacity: 0.4; }
 .hc-btn-load:hover { background: var(--primary); }
 .hc-btn-dup      { background: var(--accent); color: var(--primary); border: 1px solid var(--border); }
 .hc-btn-dup:hover{ background: var(--accent-dark); }
-.hc-btn-pdf      { background: #fee2e2; color: var(--danger); }
+.hc-btn-pdf      { background: #f3e0dd; color: var(--danger); }
 .hc-btn-pdf:hover{ background: var(--danger); color: white; }
 .hc-btn-del      { background: transparent; color: var(--danger); border: 1px solid rgba(220,38,38,0.25); }
 .hc-btn-del:hover{ background: var(--danger); color: white; }
@@ -1640,7 +1687,7 @@ tr.dragging { opacity: 0.4; }
 .cc-btn {
   flex: 1;
   padding: 5px;
-  border-radius: 20px;
+  border-radius: var(--radius-xs);
   border: none;
   font-size: 0.72rem;
   font-weight: 600;
@@ -1655,14 +1702,14 @@ tr.dragging { opacity: 0.4; }
 
 .cc-btn-new  { background: var(--secondary); color: white; }
 .cc-btn-new:hover { background: var(--primary); }
-.cc-btn-del  { background: #fee2e2; color: var(--danger); }
+.cc-btn-del  { background: #f3e0dd; color: var(--danger); }
 .cc-btn-del:hover { background: var(--danger); color: white; }
 
 .btn-add-client-manual {
   background: var(--secondary);
   color: white;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   padding: 6px 16px;
   font-size: 0.8rem;
   font-weight: 600;
@@ -1792,7 +1839,7 @@ tr.dragging { opacity: 0.4; }
 
 .btn-settings-upload {
   padding: 0.4rem 1rem;
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: white;
   font-size: 0.8rem;
@@ -1812,7 +1859,7 @@ tr.dragging { opacity: 0.4; }
 
 .btn-settings-remove {
   padding: 0.4rem 1rem;
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   border: 1px solid rgba(220,38,38,0.25);
   background: transparent;
   color: var(--danger);
@@ -1844,7 +1891,7 @@ tr.dragging { opacity: 0.4; }
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--radius-sm);
   padding: 0.6rem 2rem;
   font-size: 0.9rem;
   font-weight: 700;
@@ -1854,10 +1901,10 @@ tr.dragging { opacity: 0.4; }
   align-items: center;
   gap: 8px;
   transition: all 0.2s;
-  box-shadow: 0 4px 14px rgba(26,58,107,0.3);
+  box-shadow: 0 4px 14px rgba(30,58,95,0.3);
 }
 
-.btn-settings-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,58,107,0.4); }
+.btn-settings-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30,58,95,0.4); }
 
 /* ============================================================
    SEARCH WRAP
@@ -1868,7 +1915,7 @@ tr.dragging { opacity: 0.4; }
   width: 100%; 
   padding: 0.5rem 0.8rem 0.5rem 2.2rem; 
   border: 1px solid var(--border); 
-  border-radius: 20px; 
+  border-radius: var(--radius-sm); 
   font-size: 0.85rem; 
   font-family: inherit; 
   background: white; 
@@ -2022,7 +2069,7 @@ tr.dragging { opacity: 0.4; }
   top: 0;
   left: 0;
   right: 0;
-  background: #fffbeb;
+  background: #fbf3e3;
   border-bottom: 2px solid var(--warning);
   color: #78350f;
   padding: 8px 20px;
@@ -2083,7 +2130,7 @@ tr.dragging { opacity: 0.4; }
 .auth-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, #0a1628 0%, #1a3a6b 60%, #2a5298 100%);
+  background: linear-gradient(135deg, #10192b 0%, #1e3a5f 60%, #2c5a82 100%);
   z-index: 500;
   display: flex;
   align-items: center;
@@ -2092,12 +2139,13 @@ tr.dragging { opacity: 0.4; }
 }
 
 .auth-card {
-  background: white;
-  border-radius: 20px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 2.5rem 2rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+  box-shadow: 0 25px 60px rgba(16,25,43,0.4);
   animation: authPop 0.35s cubic-bezier(0.22,1,0.36,1);
 }
 
@@ -2110,21 +2158,21 @@ tr.dragging { opacity: 0.4; }
 
 .auth-logo {
   width: 56px; height: 56px;
-  background: linear-gradient(135deg, #1a3a6b, #2a5298);
+  background: linear-gradient(135deg, #1e3a5f, #2c5a82);
   border-radius: 14px;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 1.6rem; color: white;
   margin-bottom: 0.8rem;
-  box-shadow: 0 8px 20px rgba(26,58,107,0.35);
+  box-shadow: 0 8px 20px rgba(30,58,95,0.35);
 }
 
-.auth-title { font-size: 1.4rem; font-weight: 900; color: var(--primary); }
+.auth-title { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
 .auth-subtitle { font-size: 0.82rem; color: var(--text-light); }
 
 .auth-tabs {
   display: flex;
   background: var(--accent);
-  border-radius: 30px;
+  border-radius: var(--radius-sm);
   padding: 0.2rem;
   margin-bottom: 1.5rem;
   border: 1px solid var(--border);
@@ -2132,14 +2180,14 @@ tr.dragging { opacity: 0.4; }
 
 .auth-tab {
   flex: 1; border: none; background: transparent;
-  padding: 0.4rem; border-radius: 25px;
+  padding: 0.4rem; border-radius: var(--radius-xs);
   font-weight: 600; font-size: 0.85rem;
   color: var(--text-light); cursor: pointer;
   font-family: inherit;
   transition: all 0.2s;
 }
 
-.auth-tab.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(26,58,107,0.3); }
+.auth-tab.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(30,58,95,0.3); }
 
 .auth-field { margin-bottom: 0.8rem; }
 
@@ -2175,7 +2223,7 @@ tr.dragging { opacity: 0.4; }
 
 .auth-error {
   font-size: 0.8rem; color: var(--danger);
-  background: #fff0f0; border: 1px solid #fecaca;
+  background: #f7e4e1; border: 1px solid #e4b8b0;
   border-radius: var(--radius-xs);
   padding: 0.4rem 0.8rem;
   margin-bottom: 0.8rem;
@@ -2191,7 +2239,7 @@ tr.dragging { opacity: 0.4; }
   cursor: pointer; display: flex; align-items: center;
   justify-content: center; gap: 0.5rem;
   transition: all 0.2s;
-  box-shadow: 0 4px 14px rgba(26,58,107,0.35);
+  box-shadow: 0 4px 14px rgba(30,58,95,0.35);
 }
 
 .auth-submit:hover { opacity: 0.9; transform: translateY(-1px); }
@@ -2212,7 +2260,7 @@ tr.dragging { opacity: 0.4; }
 }
 
 .limit-card {
-  background: white; border-radius: 20px;
+  background: white; border-radius: var(--radius);
   padding: 2rem; max-width: 400px; width: 100%;
   text-align: center;
   box-shadow: 0 25px 60px rgba(0,0,0,0.3);
@@ -2221,11 +2269,11 @@ tr.dragging { opacity: 0.4; }
 
 .limit-icon {
   width: 64px; height: 64px;
-  background: #fff0f0; border-radius: 50%;
+  background: #f7e4e1; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 1.8rem; color: var(--danger);
   margin-bottom: 1rem;
-  border: 2px solid #fecaca;
+  border: 2px solid #e4b8b0;
 }
 
 .limit-title { font-size: 1.3rem; font-weight: 900; color: var(--text-dark); }
@@ -2234,7 +2282,7 @@ tr.dragging { opacity: 0.4; }
 .btn-whatsapp-cta {
   display: inline-flex; align-items: center; gap: 0.5rem;
   background: #25D366; color: white;
-  padding: 0.7rem 1.5rem; border-radius: 30px;
+  padding: 0.7rem 1.5rem; border-radius: var(--radius);
   font-weight: 700; font-size: 0.9rem;
   text-decoration: none;
   box-shadow: 0 4px 14px rgba(37,211,102,0.4);
@@ -2246,7 +2294,7 @@ tr.dragging { opacity: 0.4; }
 .btn-limit-close {
   display: block; width: 100%;
   background: transparent; border: 1.5px solid var(--border);
-  border-radius: 30px; padding: 0.5rem;
+  border-radius: var(--radius-sm); padding: 0.5rem;
   font-weight: 600; font-size: 0.85rem;
   font-family: inherit; color: var(--text-light);
   cursor: pointer; transition: all 0.15s;
@@ -2304,10 +2352,10 @@ tr.dragging { opacity: 0.4; }
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
   border: none;
-  box-shadow: 0 4px 14px rgba(26,58,107,0.25);
+  box-shadow: 0 4px 14px rgba(30,58,95,0.25);
 }
 
-.hero-action.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,58,107,0.35); }
+.hero-action.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30,58,95,0.35); }
 .hero-action:not(.primary):hover { background: var(--accent); border-color: var(--secondary); }
 
 .dashboard-kpis {
@@ -2390,7 +2438,7 @@ tr.dragging { opacity: 0.4; }
   padding: 0.6rem 0.8rem;
   border-radius: 10px;
   border: 1px solid rgba(15,23,42,0.06);
-  background: #fafbfc;
+  background: #faf7ef;
   text-align: left;
   color: inherit;
   font-family: inherit;
@@ -2454,7 +2502,7 @@ tr.dragging { opacity: 0.4; }
   border-radius: 8px;
   min-height: 10px;
   background: linear-gradient(180deg, var(--secondary), var(--primary));
-  box-shadow: 0 4px 12px rgba(26,58,107,0.2);
+  box-shadow: 0 4px 12px rgba(30,58,95,0.2);
 }
 
 .chart-bar-label {
@@ -2829,7 +2877,7 @@ tr.dragging { opacity: 0.4; }
 .mbn-type-popup-option i { font-size: 1rem; color: var(--text-light); width: 20px; text-align: center; }
 .mbn-type-popup-option.active { color: var(--primary); background: var(--accent); }
 .mbn-type-popup-option.active i { color: var(--primary); }
-.mbn-type-popup-option:hover:not(.active) { background: #f5f7ff; }
+.mbn-type-popup-option:hover:not(.active) { background: #f5f1e6; }
 
 /* Indicateur visuel sur le bouton Type actif */
 #mbnTypeBtn.type-active { color: var(--primary); background: var(--accent); border-radius: 10px; }
@@ -2848,14 +2896,14 @@ tr.dragging { opacity: 0.4; }
   #viewEditor main { padding: 0; overflow: visible; }
 
   .section-card { box-shadow: none; border: 1px solid #ddd; border-radius: 0; }
-  .document-header { background: #1a3a6b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .client-section { background: #e8eeff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .items-table thead tr { background: #1a3a6b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .document-header { background: #1e3a5f !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .client-section { background: #efe8d8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .items-table thead tr { background: #1e3a5f !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .items-table { min-width: unset; }
   .item-input { border: none; padding: 0.1rem 0.2rem; background: transparent; }
   .totals-table td { background: transparent !important; }
-  .totals-highlight { background: #1a3a6b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .signature-section { background: #f8fafd !important; }
+  .totals-highlight { background: #1e3a5f !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .signature-section { background: #f5f1e6 !important; }
   .editor-grid { display: block; }
   .editor-side-column { margin-top: 1rem; }
 }

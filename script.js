@@ -1,11 +1,11 @@
 /**
- * ProGestion V3.0 — Script principal
- * Version modernisée avec :
- * - Suppression des templates, Excel, WhatsApp, Catalogue, QR Code
- * - Mémoire des articles (autocomplétion)
- * - Refonte des paramètres (fiche entreprise)
- * - PDF premium
- * - Design modernisé
+ * ProGestion V3.1 — Script principal
+ * Version corrigée :
+ * - FIX #1 : namespacing des données locales par utilisateur (localStorage)
+ * - FIX #3 : dashboard attend la fin réelle du chargement cloud
+ * - FIX #5 : numérotation des documents non consommée à l'ouverture
+ * - FIX #6 : confirmation avant d'écraser un document existant
+ * - FIX #7 : nettoyage des attributs src des aperçus logo/signature
  */
 (function () {
   'use strict';
@@ -46,13 +46,24 @@
   const WA_NUMBER  = '22968908277';
   const MAX_UNDO   = 25;
 
-  const STORAGE_KEYS = {
+  // FIX #1 : ces clés ne sont plus utilisées directement en localStorage.
+  // Elles servent de "base" et sont combinées à l'id utilisateur via skey()
+  // pour éviter que deux comptes différents sur le même navigateur ne
+  // partagent brouillon, clients, articles, compteurs et paramètres.
+  const STORAGE_BASE = {
     draft:    'pg_draft.v7',
     counters: 'pg_counters.v7',
     clients:  'pg_clients.v7',
     settings: 'pg_settings.v7',
     articles: 'pg_articles.v7'
   };
+
+  // FIX #1 : namespace toutes les clés locales par utilisateur connecté
+  // (ou "anon" si personne n'est connecté / mode hors-ligne).
+  function skey(base) {
+    const uid = state.currentUser?.id || 'anon';
+    return `${base}.${uid}`;
+  }
 
   const MODES = {
     devis:    { label: 'DEVIS',     prefix: 'D', hasValidity: true  },
@@ -176,7 +187,8 @@
 
   function loadSettings() {
     try {
-      const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.settings));
+      // FIX #1 : clé namespacée par utilisateur
+      const raw = JSON.parse(localStorage.getItem(skey(STORAGE_BASE.settings)));
       return { ...defaultSettings(), ...raw };
     } catch {
       return defaultSettings();
@@ -184,7 +196,8 @@
   }
 
   function saveSettings(s) {
-    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(s));
+    // FIX #1 : clé namespacée par utilisateur
+    localStorage.setItem(skey(STORAGE_BASE.settings), JSON.stringify(s));
   }
 
   function applySettingsToEditor() {
@@ -348,12 +361,14 @@
      MÉMOIRE DES ARTICLES
      ============================================================ */
   function getArticles() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.articles)) || []; }
+    // FIX #1 : clé namespacée par utilisateur
+    try { return JSON.parse(localStorage.getItem(skey(STORAGE_BASE.articles))) || []; }
     catch { return []; }
   }
 
   function saveArticles(list) {
-    localStorage.setItem(STORAGE_KEYS.articles, JSON.stringify(list.slice(0, 200)));
+    // FIX #1 : clé namespacée par utilisateur
+    localStorage.setItem(skey(STORAGE_BASE.articles), JSON.stringify(list.slice(0, 200)));
   }
 
   function addArticle(designation, qty, price) {
@@ -397,12 +412,14 @@
      CARNET CLIENTS
      ============================================================ */
   function getClients() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.clients)) || []; }
+    // FIX #1 : clé namespacée par utilisateur
+    try { return JSON.parse(localStorage.getItem(skey(STORAGE_BASE.clients))) || []; }
     catch { return []; }
   }
 
   function saveClients(list) {
-    localStorage.setItem(STORAGE_KEYS.clients, JSON.stringify(list));
+    // FIX #1 : clé namespacée par utilisateur
+    localStorage.setItem(skey(STORAGE_BASE.clients), JSON.stringify(list));
   }
 
   function saveCurrentClient() {
@@ -569,12 +586,14 @@
     const key  = `${mode}-${year}`;
     const next = (counters[key] || 0) + 1;
     counters[key] = next;
-    localStorage.setItem(STORAGE_KEYS.counters, JSON.stringify(counters));
+    // FIX #1 : clé namespacée par utilisateur
+    localStorage.setItem(skey(STORAGE_BASE.counters), JSON.stringify(counters));
     return `${prefix}${year}-${String(next).padStart(4, '0')}`;
   }
 
   function getCounters() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.counters)) || {}; }
+    // FIX #1 : clé namespacée par utilisateur
+    try { return JSON.parse(localStorage.getItem(skey(STORAGE_BASE.counters))) || {}; }
     catch { return {}; }
   }
 
@@ -1085,14 +1104,14 @@
 
     const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
     if (data.logo && lp && lph) { lp.src = data.logo; lp.style.display = 'block'; lph.style.display = 'none'; }
-    else if (lp && lph)         { lp.style.display = 'none'; lph.style.display = 'flex'; }
+    else if (lp && lph)         { lp.removeAttribute('src'); lp.style.display = 'none'; lph.style.display = 'flex'; } // FIX #7
 
     const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
     if (data.sigImg && sp && sph) {
       sp.src = data.sigImg; sp.style.display = 'block'; sph.style.display = 'none';
       if (scb) scb.style.display = 'flex';
     } else if (sp && sph) {
-      sp.src = ''; sp.style.display = 'none'; sph.style.display = 'flex';
+      sp.removeAttribute('src'); sp.style.display = 'none'; sph.style.display = 'flex'; // FIX #7
       if (scb) scb.style.display = 'none';
     }
 
@@ -1115,7 +1134,8 @@
      SAUVEGARDE BROUILLON
      ============================================================ */
   function saveDraft() {
-    localStorage.setItem(STORAGE_KEYS.draft, JSON.stringify(collectData()));
+    // FIX #1 : clé namespacée par utilisateur
+    localStorage.setItem(skey(STORAGE_BASE.draft), JSON.stringify(collectData()));
   }
 
   function scheduleSave() {
@@ -1129,7 +1149,8 @@
   }
 
   function loadDraft() {
-    const raw = localStorage.getItem(STORAGE_KEYS.draft);
+    // FIX #1 : clé namespacée par utilisateur
+    const raw = localStorage.getItem(skey(STORAGE_BASE.draft));
     if (!raw) { resetToNew(); return; }
     try   { applyData(JSON.parse(raw)); }
     catch { resetToNew(); }
@@ -1145,7 +1166,7 @@
         .forEach(id => { const el = $(id); if (el) el.value = ''; });
       state.logoDataURL = null;
       const lp = $('#logoPreview'), lph = $('#logoPlaceholder');
-      if (lp) lp.style.display = 'none';
+      if (lp) { lp.style.display = 'none'; lp.removeAttribute('src'); } // FIX #7
       if (lph) lph.style.display = 'flex';
     }
 
@@ -1168,11 +1189,18 @@
     const dr = $('#discountRate');    if (dr) dr.value = 0;
 
     const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
-    if (sp)  sp.style.display  = 'none';
+    if (sp)  { sp.style.display  = 'none'; sp.removeAttribute('src'); } // FIX #7
     if (sph) sph.style.display = 'flex';
     if (scb) scb.style.display = 'none';
 
-    const newNumber = consumeNextNumber(state.mode || 'devis');
+    // FIX #5 : on affiche uniquement le prochain numéro disponible (peek),
+    // sans "consommer" le compteur. Le numéro n'est réservé qu'au moment
+    // de la sauvegarde réelle du document (voir archiveDocument()). Cela
+    // évite de brûler des numéros de devis/facture à chaque simple
+    // ouverture de l'application (nouvel appareil, cache vidé, navigation
+    // privée…), ce qui est important pour la chronologie légale des
+    // factures.
+    const newNumber = peekNextNumber(state.mode || 'devis');
     const dn = $('#docNumber'); if (dn) dn.value = newNumber;
 
     const body = $('#itemsBody');
@@ -1220,6 +1248,9 @@
   }
 
   function saveHistory(hist) {
+    // NB : limite volontaire à 100 documents locaux (les documents embarquent
+    // logo/signature en base64, ce qui peut vite remplir le quota localStorage
+    // si on augmente cette limite sans revoir le format de stockage).
     localStorage.setItem(historyKey(), JSON.stringify(hist.slice(0, 100)));
   }
 
@@ -1228,6 +1259,7 @@
     data.savedAt = new Date().toISOString();
     const hist   = getHistory();
     const dupIdx = hist.findIndex(it => it.docNumber === data.docNumber && it.mode === data.mode);
+    const isSameDraft = dupIdx >= 0 && hist[dupIdx].id === data.id;
     const isNew  = dupIdx < 0;
 
     if (isNew && state.currentUser && state.docCount >= DOC_LIMIT) {
@@ -1235,8 +1267,27 @@
       return;
     }
 
-    if (dupIdx >= 0) { hist[dupIdx] = data; }
-    else             { hist.unshift(data); }
+    // FIX #6 : si le numéro de document correspond déjà à un AUTRE document
+    // (id différent, pas simplement une re-sauvegarde du même brouillon),
+    // on prévient l'utilisateur avant d'écraser silencieusement.
+    if (dupIdx >= 0 && !isSameDraft) {
+      const existing = hist[dupIdx];
+      const ok = confirm(
+        `Le numéro "${data.docNumber}" est déjà utilisé par un autre document ` +
+        `(${existing.client?.name || 'client non renseigné'}). ` +
+        `Voulez-vous l'écraser avec le document actuel ?`
+      );
+      if (!ok) return;
+    }
+
+    if (dupIdx >= 0) {
+      hist[dupIdx] = data;
+    } else {
+      hist.unshift(data);
+      // FIX #5 : le numéro n'est officiellement réservé (compteur incrémenté)
+      // qu'à cet instant, lors de la sauvegarde réelle du document.
+      consumeNextNumber(data.mode);
+    }
     saveHistory(hist);
     updateHistoryBadge();
     populateClientDatalist();
@@ -1892,7 +1943,7 @@
     $('#btnClearSig')?.addEventListener('click', () => {
       state.sigImgDataURL = null;
       const sp = $('#sigImgPreview'), sph = $('#sigUploadPlaceholder'), scb = $('#btnClearSig');
-      if (sp) { sp.src = ''; sp.style.display = 'none'; }
+      if (sp) { sp.removeAttribute('src'); sp.style.display = 'none'; } // FIX #7
       if (sph) sph.style.display = 'flex';
       if (scb) scb.style.display = 'none';
       scheduleSave();
@@ -2400,13 +2451,20 @@
     const sueEl = $('#sidebarUserEmail'); if (sueEl) sueEl.textContent = email;
     const suaEl = $('#sidebarUserAvatar'); if (suaEl) suaEl.textContent = email.charAt(0).toUpperCase();
 
-    loadDocCountFromSupabase();
-    loadHistoryFromSupabase();
-
-    // Charger les paramètres locaux, puis écraser avec la version cloud si elle existe
-    // (ce qui permet de retrouver ses données sur un autre appareil)
+    // Charger les paramètres locaux (déjà namespacés par utilisateur — FIX #1),
+    // puis écraser avec la version cloud si elle existe (ce qui permet de
+    // retrouver ses données sur un autre appareil).
     state.settings = loadSettings();
+
+    // FIX #3 : on attend désormais TOUT le chargement cloud, y compris le
+    // compteur de documents et l'historique, avant de calculer le dashboard.
+    // Avant ce correctif, loadDocCountFromSupabase()/loadHistoryFromSupabase()
+    // n'étaient pas attendus (pas de await), donc renderDashboard() pouvait
+    // s'exécuter avec des données locales périmées pendant que Supabase
+    // répondait encore.
     await Promise.all([
+      loadDocCountFromSupabase(),
+      loadHistoryFromSupabase(),
       loadSettingsFromSupabase(),
       loadClientsFromSupabase(),
       loadArticlesFromSupabase()
@@ -2444,6 +2502,12 @@
 
     const cd = $('#currentDate');
     if (cd) cd.textContent = new Date().toLocaleDateString('fr-FR');
+
+    // FIX #7 : évite une requête réseau parasite vers la page elle-même
+    // (index.html) tant qu'aucun logo/signature n'a été importé — les
+    // balises <img> du HTML partent avec src="#" par défaut.
+    if (!state.settings.logo) $('#logoPreview')?.removeAttribute('src');
+    if (!state.settings.signature) $('#sigImgPreview')?.removeAttribute('src');
 
     bindSidebarEvents();
     bindEvents();
